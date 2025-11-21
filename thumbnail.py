@@ -4,6 +4,11 @@ import requests
 from PIL import Image
 from rich_pixels import Pixels
 
+from cache import ThumbnailCache
+
+# Disk cache for raw thumbnail images
+_raw_cache = ThumbnailCache()
+
 # In-memory cache for processed thumbnails
 # Key: (url, max_width) -> Value: Pixels object
 _thumbnail_cache: dict[tuple[str, int], Pixels] = {}
@@ -19,16 +24,26 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
     Returns:
         Renderable text representation of the image
     """
-    # Check cache first
+    # Check in-memory processed cache first
     cache_key = (url, max_width)
     if cache_key in _thumbnail_cache:
         return _thumbnail_cache[cache_key]
 
     try:
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
+        # Try to get raw image from disk cache
+        raw_data = _raw_cache.get(url)
 
-        image = Image.open(io.BytesIO(response.content))
+        if raw_data is None:
+            # Not cached, download from URL
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            raw_data = response.content
+
+            # Cache the raw data
+            _raw_cache.set(url, raw_data)
+
+        # Process the raw image
+        image = Image.open(io.BytesIO(raw_data))
 
         # Resize to fit terminal width
         # rich-pixels uses half-block characters (fg=top, bg=bottom) for 2x vertical resolution
