@@ -26,6 +26,9 @@ class RytmuzApp(App):
     # Debug mode - toggle with Ctrl+D
     debug_mode = False
 
+    # Currently selected search result
+    selected_video_data: dict | None = None
+
     CSS = """
     Screen {
         align: center top;
@@ -64,7 +67,18 @@ class RytmuzApp(App):
         width: 40%;
         height: 100%;
         padding: 1;
+        layout: vertical;
         align: center middle;
+    }
+
+    #preview-thumbnail {
+        width: 100%;
+        height: auto;
+    }
+
+    #preview-play-btn {
+        margin: 1 0 0 0;
+        width: auto;
     }
 
     SearchResultItem {
@@ -140,6 +154,7 @@ class RytmuzApp(App):
     BINDINGS = [
         Binding("ctrl+s", "focus_search", "Focus Search", show=True),
         Binding("ctrl+r", "show_recent", "Recent Songs", show=True),
+        Binding("enter", "play_selected", "Play", show=False),
         Binding("escape", "back_to_player", "Back to Player", show=True),
         Binding("ctrl+d", "toggle_debug", "Debug", show=False),
         Binding("ctrl+c", "quit", "Quit", show=True),
@@ -155,7 +170,9 @@ class RytmuzApp(App):
             with Horizontal(id="results-split"):
                 with Vertical(id="results-list-container"):
                     yield ListView(id="results-list")
-                yield Static("", id="preview-pane")
+                with Vertical(id="preview-pane"):
+                    yield Static("", id="preview-thumbnail")
+                    yield Button("▶ Play", id="preview-play-btn", classes="hidden")
 
             # Player view (shown during playback)
             with Vertical(id="player-view", classes="hidden"):
@@ -180,6 +197,20 @@ class RytmuzApp(App):
             debug_label.add_class("visible")
         else:
             debug_label.remove_class("visible")
+
+    def action_play_selected(self) -> None:
+        """Play the currently selected search result."""
+        if self.selected_video_data:
+            # Hide results, show player view
+            self.query_one("#results-split").add_class("hidden")
+            self.query_one("#player-view").remove_class("hidden")
+
+            # Simple approach: size based on width, let layout constrain height
+            terminal_width = self.size.width
+            # Use 60% of terminal width
+            thumb_width = int(terminal_width * 0.6)
+
+            self.play_video(self.selected_video_data, thumb_width)
 
     def action_focus_search(self) -> None:
         """Focus the search input and show results view."""
@@ -264,7 +295,9 @@ class RytmuzApp(App):
                 results_list = self.query_one("#results-list", ListView)
                 results_list.clear()
                 # Clear preview pane
-                self.query_one("#preview-pane", Static).update("")
+                self.query_one("#preview-thumbnail", Static).update("")
+                self.query_one("#preview-play-btn", Button).add_class("hidden")
+                self.selected_video_data = None
                 self.perform_search(query)
 
     @work(thread=True)
@@ -308,8 +341,15 @@ class RytmuzApp(App):
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         """Show thumbnail preview when hovering over a result."""
         if isinstance(event.item, SearchResultItem):
+            # Store the selected video data
+            self.selected_video_data = event.item.video_data
+
+            # Show the Play button
+            play_btn = self.query_one("#preview-play-btn", Button)
+            play_btn.remove_class("hidden")
+
             # Get preview pane dimensions from main thread
-            preview_pane = self.query_one("#preview-pane", Static)
+            preview_pane = self.query_one("#preview-pane", Vertical)
             pane_width = preview_pane.size.width
 
             # Get terminal width for comparison
@@ -338,25 +378,16 @@ class RytmuzApp(App):
         thumbnail = download_thumbnail(thumbnail_url, max_width=max_width)
 
         def update_preview():
-            preview_pane = self.query_one("#preview-pane", Static)
-            preview_pane.update(thumbnail)
+            preview_thumbnail = self.query_one("#preview-thumbnail", Static)
+            preview_thumbnail.update(thumbnail)
 
         self.call_from_thread(update_preview)
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Handle when a search result is selected."""
-        if isinstance(event.item, SearchResultItem):
-            video_data = event.item.video_data
-            # Hide results, show player view
-            self.query_one("#results-split").add_class("hidden")
-            self.query_one("#player-view").remove_class("hidden")
-
-            # Simple approach: size based on width, let layout constrain height
-            terminal_width = self.size.width
-            # Use 60% of terminal width
-            thumb_width = int(terminal_width * 0.6)
-
-            self.play_video(video_data, thumb_width)
+        """Handle when a search result is selected (Enter key or click)."""
+        # Clicking or pressing Enter will now just highlight the item
+        # Actual playback happens via Enter key binding or Play button
+        pass
 
     @work(thread=True)
     def play_video(self, video_data: dict, thumb_width: int) -> None:
@@ -403,7 +434,9 @@ class RytmuzApp(App):
         """Handle button clicks."""
         button_id = event.button.id
 
-        if button_id == "play-pause":
+        if button_id == "preview-play-btn":
+            self.action_play_selected()
+        elif button_id == "play-pause":
             self.player.toggle_pause()
         elif button_id == "seek-back":
             self.player.seek(-10)
