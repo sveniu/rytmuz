@@ -262,13 +262,15 @@ class RytmuzApp(App):
             preview_pane = self.query_one("#preview-pane", Static)
             pane_width = preview_pane.size.width
 
-            # Account for padding (1 on each side) and use 90% of remaining width
-            # Minimum of 15 for small terminals, no maximum - scales with terminal size
+            # Use a very conservative 50% of pane width to account for
+            # rendering quirks and ensure thumbnails fit
             if pane_width > 0:
-                usable_width = pane_width - 2  # Subtract padding
-                max_width = max(15, int(usable_width * 0.9))
+                max_width = max(15, int(pane_width * 0.5))
             else:
-                max_width = 25  # Fallback
+                max_width = 20  # Fallback
+
+            # Debug: show calculated size in title bar temporarily
+            self.sub_title = f"Pane: {pane_width}ch, Thumb: {max_width}ch"
 
             self.show_preview_thumbnail(event.item.video_data, max_width)
 
