@@ -73,6 +73,7 @@ class AudioPlayer:
             audio_url = self.get_audio_url(video_id)
 
             # Start mpv with IPC for control
+            # Capture stderr to diagnose intermittent audio issues
             self.mpv_process = subprocess.Popen(
                 [
                     "mpv",
@@ -82,11 +83,22 @@ class AudioPlayer:
                     audio_url
                 ],
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stderr=subprocess.PIPE,
+                text=True
             )
 
             self.current_video_id = video_id
             self.is_playing = True
+
+            # Monitor stderr for audio issues
+            def log_mpv_stderr():
+                if self.mpv_process and self.mpv_process.stderr:
+                    for line in self.mpv_process.stderr:
+                        line = line.strip()
+                        if line:
+                            logger.info(f"mpv: {line}")
+
+            threading.Thread(target=log_mpv_stderr, daemon=True).start()
 
             # Monitor playback in background
             if on_end:
