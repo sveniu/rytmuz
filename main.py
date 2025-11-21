@@ -23,6 +23,9 @@ class SearchResultItem(ListItem):
 class RytmuzApp(App):
     """A kid-friendly YouTube music player."""
 
+    # Debug mode - toggle with Ctrl+D
+    debug_mode = False
+
     CSS = """
     Screen {
         align: center top;
@@ -126,6 +129,11 @@ class RytmuzApp(App):
         background: $panel;
         text-align: center;
         color: $text-muted;
+        display: none;
+    }
+
+    #debug-info.visible {
+        display: block;
     }
     """
 
@@ -133,6 +141,7 @@ class RytmuzApp(App):
         Binding("ctrl+s", "focus_search", "Focus Search", show=True),
         Binding("ctrl+r", "show_recent", "Recent Songs", show=True),
         Binding("escape", "back_to_player", "Back to Player", show=True),
+        Binding("ctrl+d", "toggle_debug", "Debug", show=False),
         Binding("ctrl+c", "quit", "Quit", show=True),
     ]
 
@@ -162,6 +171,15 @@ class RytmuzApp(App):
 
         # Debug info at bottom
         yield Label("", id="debug-info")
+
+    def action_toggle_debug(self) -> None:
+        """Toggle debug mode."""
+        self.debug_mode = not self.debug_mode
+        debug_label = self.query_one("#debug-info", Label)
+        if self.debug_mode:
+            debug_label.add_class("visible")
+        else:
+            debug_label.remove_class("visible")
 
     def action_focus_search(self) -> None:
         """Focus the search input and show results view."""
@@ -303,12 +321,13 @@ class RytmuzApp(App):
             else:
                 max_width = 30  # Fallback
 
-            # Display debug info
-            debug_label = self.query_one("#debug-info", Label)
-            debug_label.update(
-                f"Terminal: {terminal_width}ch | Preview pane: {pane_width}ch | "
-                f"Thumbnail: {max_width}ch | Pane%: {pane_width/terminal_width*100:.1f}%"
-            )
+            # Display debug info if enabled
+            if self.debug_mode:
+                debug_label = self.query_one("#debug-info", Label)
+                debug_label.update(
+                    f"Terminal: {terminal_width}ch | Preview pane: {pane_width}ch | "
+                    f"Thumbnail: {max_width}ch | Pane%: {pane_width/terminal_width*100:.1f}%"
+                )
 
             self.show_preview_thumbnail(event.item.video_data, max_width)
 
