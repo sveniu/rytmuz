@@ -122,8 +122,7 @@ class RytmuzApp(App):
             title = song["title"]
             channel = song["channel"]
             item_label = Label(f"{title}\n[dim]{channel}[/dim]")
-            item = SearchResultItem(song)
-            item.append(item_label)
+            item = SearchResultItem(song, item_label)
             results_list.append(item)
 
     def on_mount(self) -> None:
@@ -179,8 +178,7 @@ class RytmuzApp(App):
                 def add_result(r=result):
                     results_list = self.query_one("#results-list", ListView)
                     item_label = Label(f"{r['title']}\n[dim]{r['channel']}[/dim]")
-                    item = SearchResultItem(r)
-                    item.append(item_label)
+                    item = SearchResultItem(r, item_label)
                     results_list.append(item)
 
                 self.call_from_thread(add_result)
