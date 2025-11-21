@@ -87,11 +87,6 @@ class RytmuzApp(App):
         height: auto;
     }
 
-    #preview-play-btn {
-        margin: 1 0 0 0;
-        width: auto;
-    }
-
     SearchResultItem {
         height: 1;
         padding: 0 1;
@@ -182,7 +177,6 @@ class RytmuzApp(App):
                     yield ListView(id="results-list")
                 with Vertical(id="preview-pane"):
                     yield Static("", id="preview-thumbnail")
-                    yield Button("▶ Play", id="preview-play-btn", classes="hidden")
 
             # Player view (shown during playback)
             with Vertical(id="player-view", classes="hidden"):
@@ -207,20 +201,6 @@ class RytmuzApp(App):
             debug_label.add_class("visible")
         else:
             debug_label.remove_class("visible")
-
-    def action_play_selected(self) -> None:
-        """Play the currently selected search result."""
-        if self.selected_video_data:
-            # Hide results, show player view
-            self.query_one("#results-split").add_class("hidden")
-            self.query_one("#player-view").remove_class("hidden")
-
-            # Simple approach: size based on width, let layout constrain height
-            terminal_width = self.size.width
-            # Use 60% of terminal width
-            thumb_width = int(terminal_width * 0.6)
-
-            self.play_video(self.selected_video_data, thumb_width)
 
     def action_focus_search(self) -> None:
         """Focus the search input and show results view."""
@@ -313,7 +293,6 @@ class RytmuzApp(App):
                 results_list.clear()
                 # Clear preview pane
                 self.query_one("#preview-thumbnail", Static).update("")
-                self.query_one("#preview-play-btn", Button).add_class("hidden")
                 self.selected_video_data = None
                 self.perform_search(query)
 
@@ -360,10 +339,6 @@ class RytmuzApp(App):
         if isinstance(event.item, SearchResultItem):
             # Store the selected video data
             self.selected_video_data = event.item.video_data
-
-            # Show the Play button
-            play_btn = self.query_one("#preview-play-btn", Button)
-            play_btn.remove_class("hidden")
 
             # Get preview pane dimensions from main thread
             preview_pane = self.query_one("#preview-pane", Vertical)
@@ -460,9 +435,7 @@ class RytmuzApp(App):
         """Handle button clicks."""
         button_id = event.button.id
 
-        if button_id == "preview-play-btn":
-            self.action_play_selected()
-        elif button_id == "play-pause":
+        if button_id == "play-pause":
             self.player.toggle_pause()
         elif button_id == "seek-back":
             self.player.seek(-10)
