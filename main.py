@@ -154,7 +154,6 @@ class RytmuzApp(App):
     BINDINGS = [
         Binding("ctrl+s", "focus_search", "Focus Search", show=True),
         Binding("ctrl+r", "show_recent", "Recent Songs", show=True),
-        Binding("enter", "play_selected", "Play", show=False),
         Binding("escape", "back_to_player", "Back to Player", show=True),
         Binding("ctrl+d", "toggle_debug", "Debug", show=False),
         Binding("ctrl+c", "quit", "Quit", show=True),
@@ -392,9 +391,18 @@ class RytmuzApp(App):
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle when a search result is selected (Enter key or click)."""
-        # Clicking or pressing Enter will now just highlight the item
-        # Actual playback happens via Enter key binding or Play button
-        pass
+        if isinstance(event.item, SearchResultItem):
+            video_data = event.item.video_data
+            # Hide results, show player view
+            self.query_one("#results-split").add_class("hidden")
+            self.query_one("#player-view").remove_class("hidden")
+
+            # Simple approach: size based on width, let layout constrain height
+            terminal_width = self.size.width
+            # Use 60% of terminal width
+            thumb_width = int(terminal_width * 0.6)
+
+            self.play_video(video_data, thumb_width)
 
     @work(thread=True)
     def play_video(self, video_data: dict, thumb_width: int) -> None:
