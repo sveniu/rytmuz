@@ -199,6 +199,9 @@ class RytmuzApp(App):
         if event.input.id == "search-input":
             query = event.value.strip()
             if query:
+                # Ensure results view is visible
+                self.query_one("#results-split").remove_class("hidden")
+                self.query_one("#player-view").add_class("hidden")
                 self.perform_search(query)
 
     @work(thread=True)
