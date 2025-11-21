@@ -65,7 +65,7 @@ class RytmuzApp(App):
     }
 
     SearchResultItem {
-        height: 3;
+        height: 1;
         padding: 0 1;
     }
 
