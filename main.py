@@ -30,7 +30,7 @@ class RytmuzApp(App):
 
     #search-container {
         dock: top;
-        height: auto;
+        height: 3;
         padding: 1;
         background: $panel;
     }
@@ -47,7 +47,7 @@ class RytmuzApp(App):
 
     #player-container {
         dock: bottom;
-        height: auto;
+        height: 8;
         padding: 1;
         background: $panel;
     }
