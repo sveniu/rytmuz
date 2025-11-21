@@ -108,6 +108,14 @@ class RytmuzApp(App):
     .hidden {
         display: none;
     }
+
+    #debug-info {
+        dock: bottom;
+        height: 1;
+        background: $panel;
+        text-align: center;
+        color: $text-muted;
+    }
     """
 
     BINDINGS = [
@@ -140,6 +148,9 @@ class RytmuzApp(App):
                         yield Button("⏭ +10s", id="seek-forward", classes="control-button")
                         yield Button("🔉 Vol-", id="vol-down", classes="control-button")
                         yield Button("🔊 Vol+", id="vol-up", classes="control-button")
+
+        # Debug info at bottom
+        yield Label("", id="debug-info")
 
     def action_focus_search(self) -> None:
         """Focus the search input and show results view."""
@@ -262,12 +273,22 @@ class RytmuzApp(App):
             preview_pane = self.query_one("#preview-pane", Static)
             pane_width = preview_pane.size.width
 
+            # Get terminal width for comparison
+            terminal_width = self.size.width
+
             # Use 50% of pane width - conservative but ensures thumbnails always fit
             # regardless of terminal size and rendering quirks
             if pane_width > 0:
                 max_width = max(15, int(pane_width * 0.5))
             else:
                 max_width = 20  # Fallback
+
+            # Display debug info
+            debug_label = self.query_one("#debug-info", Label)
+            debug_label.update(
+                f"Terminal: {terminal_width}ch | Preview pane: {pane_width}ch | "
+                f"Thumbnail: {max_width}ch | Pane%: {pane_width/terminal_width*100:.1f}%"
+            )
 
             self.show_preview_thumbnail(event.item.video_data, max_width)
 
