@@ -255,16 +255,23 @@ class RytmuzApp(App):
         self.log(f"Textual version: {self.app.TEXTUAL_VERSION if hasattr(self.app, 'TEXTUAL_VERSION') else 'unknown'}")
         self.query_one("#search-input", Input).focus()
 
+        # Check for mock mode (for development without API quota usage)
+        mock_mode = os.environ.get("RYTMUZ_MOCK_MODE", "").lower() in ("1", "true", "yes")
+
         # Initialize YouTube searcher
-        api_key_file = "api_key"
-        if os.path.exists(api_key_file):
-            with open(api_key_file) as f:
-                api_key = f.read().strip()
-            self.searcher = YouTubeSearcher(api_key)
-            self.log("YouTube searcher initialized with API key from file")
+        if mock_mode:
+            self.searcher = YouTubeSearcher(mock_mode=True)
+            self.log("YouTube searcher initialized in MOCK MODE (no API calls)")
         else:
-            self.searcher = YouTubeSearcher()
-            self.log("YouTube searcher initialized with API key from env")
+            api_key_file = "api_key"
+            if os.path.exists(api_key_file):
+                with open(api_key_file) as f:
+                    api_key = f.read().strip()
+                self.searcher = YouTubeSearcher(api_key)
+                self.log("YouTube searcher initialized with API key from file")
+            else:
+                self.searcher = YouTubeSearcher()
+                self.log("YouTube searcher initialized with API key from env")
 
         # Initialize audio player
         self.player = AudioPlayer()

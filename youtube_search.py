@@ -5,23 +5,33 @@ import logging
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from mock_data import MOCK_SEARCH_RESULTS
+
 logger = logging.getLogger(__name__)
 
 
 class YouTubeSearcher:
     """Handle YouTube searches using the official API."""
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None, mock_mode: bool = False):
         """Initialize the YouTube searcher.
 
         Args:
             api_key: YouTube Data API v3 key. If None, reads from YOUTUBE_API_KEY env var.
+            mock_mode: If True, use mock data instead of calling the real API (for development).
         """
-        self.api_key = api_key or os.environ.get("YOUTUBE_API_KEY")
-        if not self.api_key:
-            raise ValueError("YouTube API key not provided and YOUTUBE_API_KEY env var not set")
+        self.mock_mode = mock_mode
 
-        self.youtube = build("youtube", "v3", developerKey=self.api_key)
+        if not mock_mode:
+            self.api_key = api_key or os.environ.get("YOUTUBE_API_KEY")
+            if not self.api_key:
+                raise ValueError("YouTube API key not provided and YOUTUBE_API_KEY env var not set")
+
+            self.youtube = build("youtube", "v3", developerKey=self.api_key)
+        else:
+            logger.info("Mock mode enabled - using fake search results")
+            self.api_key = None
+            self.youtube = None
 
     def search(self, query: str, max_results: int = 10) -> list[dict]:
         """Search for music videos on YouTube.
@@ -38,6 +48,11 @@ class YouTubeSearcher:
                 - thumbnail_url: URL to the video thumbnail
                 - description: Video description
         """
+        # Mock mode: return fake data without calling API
+        if self.mock_mode:
+            logger.info(f"Mock search for: '{query}' (returning {min(max_results, len(MOCK_SEARCH_RESULTS))} results)")
+            return MOCK_SEARCH_RESULTS[:max_results]
+
         try:
             logger.info(f"Searching YouTube for: '{query}' (max_results={max_results})")
 
