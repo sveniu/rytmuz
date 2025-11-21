@@ -75,25 +75,26 @@ class RytmuzApp(App):
 
     #player-view {
         height: 100%;
-        align: center middle;
+        align: center top;
+        padding: 2 0;
     }
 
     #player-content {
         width: 100%;
-        align: center middle;
+        height: auto;
     }
 
     #player-thumbnail {
         width: 100%;
         height: auto;
-        margin-bottom: 2;
+        margin-bottom: 1;
         align: center middle;
         content-align: center middle;
     }
 
     #now-playing {
         text-align: center;
-        margin: 1;
+        margin: 0 0 1 0;
         width: 100%;
     }
 
@@ -101,6 +102,8 @@ class RytmuzApp(App):
         align: center middle;
         width: 100%;
         content-align: center middle;
+        margin: 0;
+        padding: 0;
     }
 
     .control-button {
