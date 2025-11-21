@@ -113,6 +113,7 @@ class RytmuzApp(App):
     BINDINGS = [
         Binding("ctrl+s", "focus_search", "Focus Search", show=True),
         Binding("ctrl+r", "show_recent", "Recent Songs", show=True),
+        Binding("escape", "back_to_player", "Back to Player", show=True),
         Binding("ctrl+c", "quit", "Quit", show=True),
     ]
 
@@ -146,6 +147,13 @@ class RytmuzApp(App):
         self.query_one("#results-split").remove_class("hidden")
         self.query_one("#player-view").add_class("hidden")
         self.query_one("#search-input", Input).focus()
+
+    def action_back_to_player(self) -> None:
+        """Return to player view if music is playing."""
+        # Only switch if player view has content (something is playing)
+        if self.player.is_playing:
+            self.query_one("#results-split").add_class("hidden")
+            self.query_one("#player-view").remove_class("hidden")
 
     def action_show_recent(self) -> None:
         """Show recent songs."""
