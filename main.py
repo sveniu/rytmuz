@@ -78,15 +78,27 @@ class RytmuzApp(App):
         align: center middle;
     }
 
+    #player-content {
+        width: auto;
+        align: center middle;
+    }
+
     #player-thumbnail {
         width: auto;
         height: auto;
         margin-bottom: 2;
+        align: center middle;
     }
 
     #now-playing {
         text-align: center;
         margin: 1;
+        width: 100%;
+    }
+
+    #controls-container {
+        align: center middle;
+        width: auto;
     }
 
     .control-button {
@@ -117,15 +129,16 @@ class RytmuzApp(App):
                 yield Static("", id="preview-pane")
 
             # Player view (shown during playback)
-            with Vertical(id="player-view", classes="hidden"):
-                yield Static("", id="player-thumbnail")
-                yield Label("Loading...", id="now-playing")
-                with Horizontal():
-                    yield Button("⏮ -10s", id="seek-back", classes="control-button")
-                    yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
-                    yield Button("⏭ +10s", id="seek-forward", classes="control-button")
-                    yield Button("🔉 Vol-", id="vol-down", classes="control-button")
-                    yield Button("🔊 Vol+", id="vol-up", classes="control-button")
+            with Container(id="player-view", classes="hidden"):
+                with Vertical(id="player-content"):
+                    yield Static("", id="player-thumbnail")
+                    yield Label("Loading...", id="now-playing")
+                    with Horizontal(id="controls-container"):
+                        yield Button("⏮ -10s", id="seek-back", classes="control-button")
+                        yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
+                        yield Button("⏭ +10s", id="seek-forward", classes="control-button")
+                        yield Button("🔉 Vol-", id="vol-down", classes="control-button")
+                        yield Button("🔊 Vol+", id="vol-up", classes="control-button")
 
     def action_focus_search(self) -> None:
         """Focus the search input and show results view."""
