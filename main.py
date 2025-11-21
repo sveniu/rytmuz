@@ -82,25 +82,31 @@ class RytmuzApp(App):
     #player-content {
         width: 100%;
         height: auto;
+        padding: 0;
+        margin: 0;
     }
 
     #player-thumbnail {
         width: 100%;
         height: auto;
-        margin-bottom: 1;
+        margin: 0 0 1 0;
+        padding: 0;
         align: center middle;
         content-align: center middle;
     }
 
     #now-playing {
         text-align: center;
-        margin: 0 0 1 0;
+        margin: 0;
+        padding: 0;
         width: 100%;
+        height: auto;
     }
 
     #controls-container {
         align: center middle;
         width: 100%;
+        height: auto;
         content-align: center middle;
         margin: 0;
         padding: 0;
