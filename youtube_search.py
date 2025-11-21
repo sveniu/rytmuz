@@ -1,7 +1,9 @@
 """YouTube search functionality using Google API."""
 import os
 import html
+import json
 import logging
+import subprocess
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -35,6 +37,68 @@ class YouTubeSearcher:
             self.api_key = None
             self.youtube = None
 
+    def ytdlp_search(self, query: str, max_results: int = 10) -> list[dict]:
+        """Search using yt-dlp as fallback when API is unavailable.
+
+        Args:
+            query: Search query string
+            max_results: Maximum number of results to return
+
+        Returns:
+            List of search result dictionaries (same format as official API)
+        """
+        try:
+            logger.info(f"Using yt-dlp search for: '{query}' (max_results={max_results})")
+
+            # Run yt-dlp with flat-playlist to get metadata without downloading
+            cmd = [
+                "yt-dlp",
+                f"ytsearch{max_results}:{query}",
+                "--dump-json",
+                "--flat-playlist",
+                "--no-warnings"
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                logger.error(f"yt-dlp search failed: {result.stderr}")
+                return []
+
+            # Parse JSON output (one object per line)
+            results = []
+            for line in result.stdout.strip().split('\n'):
+                if not line:
+                    continue
+
+                try:
+                    data = json.loads(line)
+                    results.append({
+                        "video_id": data["id"],
+                        "title": html.unescape(data.get("title", "Unknown")),
+                        "channel": html.unescape(data.get("uploader", "Unknown")),
+                        "thumbnail_url": data.get("thumbnail", ""),
+                        "description": html.unescape(data.get("description", "")),
+                    })
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.warning(f"Failed to parse yt-dlp result line: {e}")
+                    continue
+
+            logger.info(f"yt-dlp search returned {len(results)} results")
+            return results
+
+        except subprocess.TimeoutExpired:
+            logger.error("yt-dlp search timed out")
+            return []
+        except Exception as e:
+            logger.error(f"yt-dlp search error: {type(e).__name__}: {e}")
+            return []
+
     def search(self, query: str, max_results: int = 10) -> list[dict]:
         """Search for music videos on YouTube.
 
@@ -63,8 +127,9 @@ class YouTubeSearcher:
             self.cache.set(query, results)
             return results
 
+        # Try official API first (if available)
         try:
-            logger.info(f"Searching YouTube for: '{query}' (max_results={max_results})")
+            logger.info(f"Searching YouTube API for: '{query}' (max_results={max_results})")
 
             request = self.youtube.search().list(
                 part="snippet",
@@ -104,13 +169,27 @@ class YouTubeSearcher:
                     logger.warning(f"Skipping malformed result - {type(e).__name__}: {e}. Item keys: {item.keys()}, id: {item.get('id', 'MISSING')}")
                     continue
 
-            logger.info(f"Search returned {len(results)} valid results ({skipped_count} skipped)")
+            logger.info(f"API search returned {len(results)} valid results ({skipped_count} skipped)")
 
             # Cache the results
             self.cache.set(query, results)
 
             return results
 
-        except HttpError as e:
-            logger.error(f"YouTube API error: {e}")
-            raise Exception(f"YouTube API error: {e}")
+        except Exception as e:
+            # Official API failed - fall back to yt-dlp
+            error_type = type(e).__name__
+            error_msg = str(e)
+            logger.warning(f"YouTube API search failed ({error_type}: {error_msg}), falling back to yt-dlp")
+
+            # Try yt-dlp fallback
+            results = self.ytdlp_search(query, max_results)
+
+            if results:
+                # Cache the results
+                self.cache.set(query, results)
+                return results
+            else:
+                # Both methods failed
+                logger.error(f"Both API and yt-dlp search failed for query: '{query}'")
+                return []
