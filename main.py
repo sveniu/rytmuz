@@ -79,15 +79,16 @@ class RytmuzApp(App):
     }
 
     #player-content {
-        width: auto;
+        width: 100%;
         align: center middle;
     }
 
     #player-thumbnail {
-        width: auto;
+        width: 100%;
         height: auto;
         margin-bottom: 2;
         align: center middle;
+        content-align: center middle;
     }
 
     #now-playing {
@@ -310,10 +311,15 @@ class RytmuzApp(App):
             # Hide results, show player view
             self.query_one("#results-split").add_class("hidden")
             self.query_one("#player-view").remove_class("hidden")
-            self.play_video(video_data)
+
+            # Calculate thumbnail size for player view (60% of terminal width)
+            terminal_width = self.size.width
+            thumb_width = int(terminal_width * 0.6)
+
+            self.play_video(video_data, thumb_width)
 
     @work(thread=True)
-    def play_video(self, video_data: dict) -> None:
+    def play_video(self, video_data: dict, thumb_width: int) -> None:
         """Start playing a video."""
         video_id = video_data["video_id"]
         title = video_data["title"]
@@ -326,8 +332,8 @@ class RytmuzApp(App):
         self.call_from_thread(update_status, f"Loading: {title}")
 
         try:
-            # Download and display larger thumbnail
-            thumbnail = download_thumbnail(thumbnail_url, max_width=50)
+            # Download and display thumbnail at calculated size
+            thumbnail = download_thumbnail(thumbnail_url, max_width=thumb_width)
 
             def update_thumbnail():
                 thumbnail_display = self.query_one("#player-thumbnail", Static)
