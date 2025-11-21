@@ -4,8 +4,10 @@ from textual.containers import Container, Vertical, Horizontal
 from textual.widgets import Input, Button, Static, Label, ListItem, ListView
 from textual.binding import Binding
 from textual.message import Message
+from textual import work
 
 from youtube_search import YouTubeSearcher
+from thumbnail import download_thumbnail
 
 
 class SearchResultItem(ListItem):
@@ -113,6 +115,7 @@ class RytmuzApp(App):
             if query:
                 await self.perform_search(query)
 
+    @work(thread=True)
     async def perform_search(self, query: str) -> None:
         """Perform a YouTube search and display results."""
         results_list = self.query_one("#results-list", ListView)
@@ -122,7 +125,7 @@ class RytmuzApp(App):
             results = self.searcher.search(query, max_results=15)
 
             if not results:
-                results_list.append(ListItem(Label("No results found")))
+                self.call_from_thread(results_list.append, ListItem(Label("No results found")))
                 return
 
             for result in results:
@@ -131,10 +134,10 @@ class RytmuzApp(App):
                 item_label = Label(f"{title}\n[dim]{channel}[/dim]")
                 item = SearchResultItem(result)
                 item.append(item_label)
-                results_list.append(item)
+                self.call_from_thread(results_list.append, item)
 
         except Exception as e:
-            results_list.append(ListItem(Label(f"[red]Error: {e}[/red]")))
+            self.call_from_thread(results_list.append, ListItem(Label(f"[red]Error: {e}[/red]")))
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle when a search result is selected."""
