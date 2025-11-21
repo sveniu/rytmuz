@@ -11,6 +11,7 @@ venv/
 INIT
 api_key
 .cache/
+.history.json
 
 # IDE
 .vscode/

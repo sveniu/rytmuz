@@ -9,6 +9,7 @@ from textual import work
 from youtube_search import YouTubeSearcher
 from thumbnail import download_thumbnail
 from player import AudioPlayer
+from history import PlayHistory
 
 
 class SearchResultItem(ListItem):
@@ -72,6 +73,7 @@ class RytmuzApp(App):
 
     BINDINGS = [
         Binding("ctrl+s", "focus_search", "Focus Search", show=True),
+        Binding("ctrl+r", "show_recent", "Recent Songs", show=True),
         Binding("ctrl+c", "quit", "Quit", show=True),
     ]
 
@@ -96,6 +98,25 @@ class RytmuzApp(App):
         """Focus the search input."""
         self.query_one("#search-input", Input).focus()
 
+    def action_show_recent(self) -> None:
+        """Show recent songs."""
+        results_list = self.query_one("#results-list", ListView)
+        results_list.clear()
+
+        recent_songs = self.history.get_recent(20)
+
+        if not recent_songs:
+            results_list.append(ListItem(Label("No recent songs")))
+            return
+
+        for song in recent_songs:
+            title = song["title"]
+            channel = song["channel"]
+            item_label = Label(f"{title}\n[dim]{channel}[/dim]")
+            item = SearchResultItem(song)
+            item.append(item_label)
+            results_list.append(item)
+
     def on_mount(self) -> None:
         """Called when app starts."""
         self.query_one("#search-input", Input).focus()
@@ -111,6 +132,9 @@ class RytmuzApp(App):
 
         # Initialize audio player
         self.player = AudioPlayer()
+
+        # Initialize play history
+        self.history = PlayHistory()
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle search when user presses Enter."""
@@ -161,6 +185,9 @@ class RytmuzApp(App):
         try:
             self.player.play(video_id)
             self.call_from_thread(now_playing.update, f"▶ Playing: {title}")
+
+            # Add to history
+            self.history.add(video_data)
         except Exception as e:
             self.call_from_thread(now_playing.update, f"Error: {e}")
 
