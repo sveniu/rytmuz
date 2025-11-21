@@ -19,6 +19,17 @@ class SearchResultItem(ListItem):
         super().__init__(*args, **kwargs)
         self.video_data = video_data
 
+    def on_enter(self) -> None:
+        """Trigger highlighting when mouse enters the item."""
+        # Find the parent ListView
+        if isinstance(self.parent, ListView):
+            # Find our index in the ListView and set it (triggers Highlighted event)
+            try:
+                index = list(self.parent.children).index(self)
+                self.parent.index = index
+            except (ValueError, AttributeError):
+                pass
+
 
 class RytmuzApp(App):
     """A kid-friendly YouTube music player."""
