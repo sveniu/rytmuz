@@ -42,7 +42,9 @@ class YouTubeSearcher:
                 videoCategoryId="10",  # Music category
                 topicId="/m/04rlf",  # Music topic
                 maxResults=max_results,
-                safeSearch="moderate"
+                safeSearch="moderate",
+                videoEmbeddable="true",  # Filter for embeddable videos (reduces DRM)
+                videoSyndicated="true"  # Filter for syndicated videos (reduces DRM)
             )
             response = request.execute()
 
