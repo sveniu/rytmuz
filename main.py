@@ -242,7 +242,16 @@ class RytmuzApp(App):
     def show_preview_thumbnail(self, video_data: dict) -> None:
         """Load and display thumbnail in preview pane."""
         thumbnail_url = video_data["thumbnail_url"]
-        thumbnail = download_thumbnail(thumbnail_url, max_width=45)
+
+        # Get preview pane dimensions to size thumbnail appropriately
+        preview_pane = self.query_one("#preview-pane", Static)
+        pane_width = preview_pane.size.width
+        pane_height = preview_pane.size.height
+
+        # Use 90% of pane width to leave some padding
+        max_width = int(pane_width * 0.9) if pane_width > 0 else 30
+
+        thumbnail = download_thumbnail(thumbnail_url, max_width=max_width)
 
         def update_preview():
             preview_pane = self.query_one("#preview-pane", Static)
