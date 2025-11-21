@@ -22,10 +22,15 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
         image = Image.open(io.BytesIO(response.content))
 
         # Resize to fit terminal width
-        # Terminal characters are roughly 2:1 (height:width), so we need to adjust
+        # rich-pixels uses half-block characters (fg=top, bg=bottom) for 2x vertical resolution
+        # So each character represents 1 pixel width × 2 pixels height
         aspect_ratio = image.height / image.width
         new_width = min(max_width, 60)
-        new_height = int(new_width * aspect_ratio * 2)  # Account for character aspect ratio (2x taller)
+        # To maintain aspect ratio: if image is W×H, we want new_width chars × new_height chars
+        # where new_width × 1 : new_height × 2 = W : H
+        # Therefore: new_height = (new_width × H) / (2 × W) = new_width × aspect_ratio / 2
+        # But multiplying by 1.0 instead of 0.5 gives better proportions
+        new_height = int(new_width * aspect_ratio * 1.0)
 
         image = image.resize((new_width * 2, new_height * 2), Image.Resampling.LANCZOS)
 
