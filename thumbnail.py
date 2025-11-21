@@ -25,7 +25,7 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
         # rich-pixels uses half-block characters (fg=top, bg=bottom) for 2x vertical resolution
         # So each character represents 1 pixel width × 2 pixels height
         aspect_ratio = image.height / image.width
-        new_width = min(max_width, 60)
+        new_width = max_width  # No hard cap - scale with terminal size
         # To maintain aspect ratio: if image is W×H, we want new_width chars × new_height chars
         # where new_width × 1 : new_height × 2 = W : H (accounting for char aspect ~2:1)
         # Therefore: new_height = (new_width × H) / (2 × W) = new_width × aspect_ratio / 2
