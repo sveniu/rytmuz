@@ -202,6 +202,11 @@ class RytmuzApp(App):
                 # Ensure results view is visible
                 self.query_one("#results-split").remove_class("hidden")
                 self.query_one("#player-view").add_class("hidden")
+                # Clear old results immediately
+                results_list = self.query_one("#results-list", ListView)
+                results_list.clear()
+                # Clear preview pane
+                self.query_one("#preview-pane", Static).update("")
                 self.perform_search(query)
 
     @work(thread=True)
