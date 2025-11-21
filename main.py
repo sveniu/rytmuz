@@ -1,7 +1,19 @@
+import os
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical, Horizontal
-from textual.widgets import Input, Button, Static, Label
+from textual.widgets import Input, Button, Static, Label, ListItem, ListView
 from textual.binding import Binding
+from textual.message import Message
+
+from youtube_search import YouTubeSearcher
+
+
+class SearchResultItem(ListItem):
+    """A custom list item for search results."""
+
+    def __init__(self, video_data: dict, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.video_data = video_data
 
 
 class RytmuzApp(App):
@@ -44,6 +56,15 @@ class RytmuzApp(App):
         text-align: center;
         padding: 1;
     }
+
+    #results-list {
+        height: 100%;
+    }
+
+    SearchResultItem {
+        padding: 1;
+        height: auto;
+    }
     """
 
     BINDINGS = [
@@ -57,7 +78,7 @@ class RytmuzApp(App):
             yield Input(placeholder="Search for music...", id="search-input")
 
         with Vertical(id="results-container"):
-            yield Label("Search for music to start playing", id="results-label")
+            yield ListView(id="results-list")
 
         with Container(id="player-container"):
             yield Label("No song playing", id="now-playing")
@@ -75,6 +96,57 @@ class RytmuzApp(App):
     def on_mount(self) -> None:
         """Called when app starts."""
         self.query_one("#search-input", Input).focus()
+
+        # Initialize YouTube searcher
+        api_key_file = "api_key"
+        if os.path.exists(api_key_file):
+            with open(api_key_file) as f:
+                api_key = f.read().strip()
+            self.searcher = YouTubeSearcher(api_key)
+        else:
+            self.searcher = YouTubeSearcher()
+
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle search when user presses Enter."""
+        if event.input.id == "search-input":
+            query = event.value.strip()
+            if query:
+                await self.perform_search(query)
+
+    async def perform_search(self, query: str) -> None:
+        """Perform a YouTube search and display results."""
+        results_list = self.query_one("#results-list", ListView)
+        results_list.clear()
+
+        try:
+            results = self.searcher.search(query, max_results=15)
+
+            if not results:
+                results_list.append(ListItem(Label("No results found")))
+                return
+
+            for result in results:
+                title = result["title"]
+                channel = result["channel"]
+                item_label = Label(f"{title}\n[dim]{channel}[/dim]")
+                item = SearchResultItem(result)
+                item.append(item_label)
+                results_list.append(item)
+
+        except Exception as e:
+            results_list.append(ListItem(Label(f"[red]Error: {e}[/red]")))
+
+    async def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle when a search result is selected."""
+        if isinstance(event.item, SearchResultItem):
+            video_data = event.item.video_data
+            await self.play_video(video_data)
+
+    async def play_video(self, video_data: dict) -> None:
+        """Start playing a video."""
+        now_playing = self.query_one("#now-playing", Label)
+        now_playing.update(f"Playing: {video_data['title']}")
+        # Actual playback will be implemented later
 
 
 def main():
