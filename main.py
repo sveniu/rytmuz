@@ -270,7 +270,7 @@ class RytmuzApp(App):
                 self.log("YouTube searcher initialized with API key from file")
             else:
                 self.searcher = YouTubeSearcher()
-                self.log("YouTube searcher initialized with API key from env")
+                self.log("YouTube searcher initialized (will use API key from env if available, otherwise yt-dlp fallback)")
 
         # Initialize audio player
         self.player = AudioPlayer()

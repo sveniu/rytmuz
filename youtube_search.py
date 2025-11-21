@@ -28,10 +28,12 @@ class YouTubeSearcher:
 
         if not mock_mode:
             self.api_key = api_key or os.environ.get("YOUTUBE_API_KEY")
-            if not self.api_key:
-                raise ValueError("YouTube API key not provided and YOUTUBE_API_KEY env var not set")
-
-            self.youtube = build("youtube", "v3", developerKey=self.api_key)
+            if self.api_key:
+                self.youtube = build("youtube", "v3", developerKey=self.api_key)
+                logger.info("YouTube searcher initialized with official API")
+            else:
+                self.youtube = None
+                logger.info("No API key provided - will use yt-dlp fallback for all searches")
         else:
             logger.info("Mock mode enabled - using fake search results")
             self.api_key = None
@@ -127,69 +129,82 @@ class YouTubeSearcher:
             self.cache.set(query, results)
             return results
 
-        # Try official API first (if available)
-        try:
-            logger.info(f"Searching YouTube API for: '{query}' (max_results={max_results})")
+        # Try official API first (if available and API key exists)
+        if self.youtube is not None:
+            try:
+                logger.info(f"Searching YouTube API for: '{query}' (max_results={max_results})")
 
-            request = self.youtube.search().list(
-                part="snippet",
-                q=query,
-                type="video",
-                videoCategoryId="10",  # Music category
-                topicId="/m/04rlf",  # Music topic
-                maxResults=max_results,
-                safeSearch="moderate",
-                videoEmbeddable="true",  # Filter for embeddable videos (reduces DRM)
-                videoSyndicated="true"  # Filter for syndicated videos (reduces DRM)
-            )
-            response = request.execute()
+                request = self.youtube.search().list(
+                    part="snippet",
+                    q=query,
+                    type="video",
+                    videoCategoryId="10",  # Music category
+                    topicId="/m/04rlf",  # Music topic
+                    maxResults=max_results,
+                    safeSearch="moderate",
+                    videoEmbeddable="true",  # Filter for embeddable videos (reduces DRM)
+                    videoSyndicated="true"  # Filter for syndicated videos (reduces DRM)
+                )
+                response = request.execute()
 
-            results = []
-            skipped_count = 0
+                results = []
+                skipped_count = 0
 
-            for item in response.get("items", []):
-                try:
-                    # Skip if not a video or missing required fields
-                    if "id" not in item or "videoId" not in item["id"]:
+                for item in response.get("items", []):
+                    try:
+                        # Skip if not a video or missing required fields
+                        if "id" not in item or "videoId" not in item["id"]:
+                            skipped_count += 1
+                            logger.warning(f"Skipping result with missing videoId. Item id structure: {item.get('id', 'MISSING')}")
+                            continue
+
+                        snippet = item["snippet"]
+                        results.append({
+                            "video_id": item["id"]["videoId"],
+                            "title": html.unescape(snippet["title"]),
+                            "channel": html.unescape(snippet["channelTitle"]),
+                            "thumbnail_url": snippet["thumbnails"]["high"]["url"],
+                            "description": html.unescape(snippet["description"]),
+                        })
+                    except (KeyError, TypeError) as e:
+                        # Skip malformed results but log what went wrong
                         skipped_count += 1
-                        logger.warning(f"Skipping result with missing videoId. Item id structure: {item.get('id', 'MISSING')}")
+                        logger.warning(f"Skipping malformed result - {type(e).__name__}: {e}. Item keys: {item.keys()}, id: {item.get('id', 'MISSING')}")
                         continue
 
-                    snippet = item["snippet"]
-                    results.append({
-                        "video_id": item["id"]["videoId"],
-                        "title": html.unescape(snippet["title"]),
-                        "channel": html.unescape(snippet["channelTitle"]),
-                        "thumbnail_url": snippet["thumbnails"]["high"]["url"],
-                        "description": html.unescape(snippet["description"]),
-                    })
-                except (KeyError, TypeError) as e:
-                    # Skip malformed results but log what went wrong
-                    skipped_count += 1
-                    logger.warning(f"Skipping malformed result - {type(e).__name__}: {e}. Item keys: {item.keys()}, id: {item.get('id', 'MISSING')}")
-                    continue
+                logger.info(f"API search returned {len(results)} valid results ({skipped_count} skipped)")
 
-            logger.info(f"API search returned {len(results)} valid results ({skipped_count} skipped)")
-
-            # Cache the results
-            self.cache.set(query, results)
-
-            return results
-
-        except Exception as e:
-            # Official API failed - fall back to yt-dlp
-            error_type = type(e).__name__
-            error_msg = str(e)
-            logger.warning(f"YouTube API search failed ({error_type}: {error_msg}), falling back to yt-dlp")
-
-            # Try yt-dlp fallback
-            results = self.ytdlp_search(query, max_results)
-
-            if results:
                 # Cache the results
                 self.cache.set(query, results)
+
                 return results
-            else:
-                # Both methods failed
-                logger.error(f"Both API and yt-dlp search failed for query: '{query}'")
-                return []
+
+            except Exception as e:
+                # Official API failed - fall back to yt-dlp
+                error_type = type(e).__name__
+                error_msg = str(e)
+                logger.warning(f"YouTube API search failed ({error_type}: {error_msg}), falling back to yt-dlp")
+
+                # Try yt-dlp fallback
+                results = self.ytdlp_search(query, max_results)
+
+                if results:
+                    # Cache the results
+                    self.cache.set(query, results)
+                    return results
+                else:
+                    # Both methods failed
+                    logger.error(f"Both API and yt-dlp search failed for query: '{query}'")
+                    return []
+
+        # No API key available - use yt-dlp directly
+        logger.info(f"No API key available, using yt-dlp for search: '{query}'")
+        results = self.ytdlp_search(query, max_results)
+
+        if results:
+            # Cache the results
+            self.cache.set(query, results)
+            return results
+        else:
+            logger.error(f"yt-dlp search failed for query: '{query}'")
+            return []
