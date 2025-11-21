@@ -1,0 +1,10 @@
+[project]
+name = "rytmuz"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "google-api-python-client>=2.187.0",
+    "rich-pixels>=3.0.1",
+    "textual>=6.6.0",
+]
