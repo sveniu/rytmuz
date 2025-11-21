@@ -3,6 +3,8 @@ import subprocess
 import threading
 from typing import Optional, Callable
 
+from cache import AudioCache
+
 
 class AudioPlayer:
     """Manage audio playback using yt-dlp and mpv."""
@@ -13,9 +15,10 @@ class AudioPlayer:
         self.current_video_id: Optional[str] = None
         self.is_playing: bool = False
         self._ipc_socket = "/tmp/rytmuz_mpv_socket"
+        self.cache = AudioCache()
 
     def get_audio_url(self, video_id: str) -> str:
-        """Get the direct audio URL using yt-dlp.
+        """Get the direct audio URL using yt-dlp with caching.
 
         Args:
             video_id: YouTube video ID
@@ -23,6 +26,12 @@ class AudioPlayer:
         Returns:
             Direct audio stream URL
         """
+        # Check cache first
+        cached_url = self.cache.get(video_id)
+        if cached_url:
+            return cached_url
+
+        # Fetch from yt-dlp
         youtube_url = f"https://www.youtube.com/watch?v={video_id}"
 
         try:
@@ -33,7 +42,12 @@ class AudioPlayer:
                 check=True,
                 timeout=15
             )
-            return result.stdout.strip()
+            url = result.stdout.strip()
+
+            # Cache the URL
+            self.cache.set(video_id, url)
+
+            return url
         except subprocess.CalledProcessError as e:
             raise Exception(f"yt-dlp failed: {e.stderr}")
         except subprocess.TimeoutExpired:
