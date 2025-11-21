@@ -22,9 +22,10 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
         image = Image.open(io.BytesIO(response.content))
 
         # Resize to fit terminal width
+        # Terminal characters are roughly 2:1 (height:width), so we need to adjust
         aspect_ratio = image.height / image.width
         new_width = min(max_width, 60)
-        new_height = int(new_width * aspect_ratio * 0.5)  # Account for character aspect ratio
+        new_height = int(new_width * aspect_ratio * 2)  # Account for character aspect ratio (2x taller)
 
         image = image.resize((new_width * 2, new_height * 2), Image.Resampling.LANCZOS)
 
