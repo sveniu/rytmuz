@@ -323,21 +323,29 @@ class RytmuzApp(App):
             self.query_one("#player-view").remove_class("hidden")
 
             # Calculate thumbnail size - consider both width and height constraints
-            # Leave room for title (~2 lines), controls (~3 lines), search bar (~5 lines)
+            # Account for actual UI elements:
+            # - Search bar: 5 lines
+            # - Player padding top: 2 lines
+            # - Thumbnail margin bottom: 1 line
+            # - Title: 1 line
+            # - Title margin bottom: 1 line
+            # - Controls: 3 lines
+            # - Debug bar: 1 line
+            # Total: 14 lines
             terminal_width = self.size.width
             terminal_height = self.size.height
 
             # Max width: 60% of terminal width
             max_thumb_width = int(terminal_width * 0.6)
 
-            # Max height: terminal height minus UI elements (search bar + title + controls + debug)
-            available_height = terminal_height - 10  # Reduced from 15 to allow larger thumbnails
+            # Max height: terminal height minus actual UI elements
+            available_height = terminal_height - 14
             # Convert height to width (aspect ratio 16:9, with 0.5 multiplier)
             # available_height chars * 2 (rich-pixels) / 0.5625 (9/16 aspect)
             max_thumb_width_from_height = int(available_height * 2 / 0.5625)
 
-            # Use the smaller of the two constraints
-            thumb_width = min(max_thumb_width, max_thumb_width_from_height, 100)
+            # Use the smaller of the two constraints (removed 100-char cap)
+            thumb_width = min(max_thumb_width, max_thumb_width_from_height)
 
             self.play_video(video_data, thumb_width)
 
