@@ -188,6 +188,12 @@ class RytmuzApp(App):
         # Initialize play history
         self.history = PlayHistory()
 
+    def on_unmount(self) -> None:
+        """Called when app exits - cleanup."""
+        # Stop any playing audio
+        if hasattr(self, 'player'):
+            self.player.stop()
+
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle search when user presses Enter."""
         if event.input.id == "search-input":
