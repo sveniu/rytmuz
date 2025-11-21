@@ -69,6 +69,12 @@ class RytmuzApp(App):
         padding: 1;
         height: auto;
     }
+
+    #thumbnail-display {
+        width: auto;
+        height: auto;
+        padding: 1;
+    }
     """
 
     BINDINGS = [
@@ -86,13 +92,16 @@ class RytmuzApp(App):
             yield ListView(id="results-list")
 
         with Container(id="player-container"):
-            yield Label("No song playing", id="now-playing")
             with Horizontal():
-                yield Button("⏮ -10s", id="seek-back", classes="control-button")
-                yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
-                yield Button("⏭ +10s", id="seek-forward", classes="control-button")
-                yield Button("🔉 Vol-", id="vol-down", classes="control-button")
-                yield Button("🔊 Vol+", id="vol-up", classes="control-button")
+                yield Static("", id="thumbnail-display")
+                with Vertical():
+                    yield Label("No song playing", id="now-playing")
+                    with Horizontal():
+                        yield Button("⏮ -10s", id="seek-back", classes="control-button")
+                        yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
+                        yield Button("⏭ +10s", id="seek-forward", classes="control-button")
+                        yield Button("🔉 Vol-", id="vol-down", classes="control-button")
+                        yield Button("🔊 Vol+", id="vol-up", classes="control-button")
 
     def action_focus_search(self) -> None:
         """Focus the search input."""
@@ -178,11 +187,17 @@ class RytmuzApp(App):
         """Start playing a video."""
         video_id = video_data["video_id"]
         title = video_data["title"]
+        thumbnail_url = video_data["thumbnail_url"]
 
         now_playing = self.query_one("#now-playing", Label)
         self.call_from_thread(now_playing.update, f"Loading: {title}")
 
         try:
+            # Download and display thumbnail
+            thumbnail = download_thumbnail(thumbnail_url, max_width=30)
+            thumbnail_display = self.query_one("#thumbnail-display", Static)
+            self.call_from_thread(thumbnail_display.update, thumbnail)
+
             self.player.play(video_id)
             self.call_from_thread(now_playing.update, f"▶ Playing: {title}")
 
