@@ -74,7 +74,7 @@ class RytmuzApp(App):
     }
 
     #player-view {
-        height: 100%;
+        height: auto;
         align: center top;
         padding: 2 0;
     }
@@ -97,7 +97,7 @@ class RytmuzApp(App):
 
     #now-playing {
         text-align: center;
-        margin: 0;
+        margin: 0 0 1 0;
         padding: 0;
         width: 100%;
         height: auto;
@@ -106,7 +106,7 @@ class RytmuzApp(App):
     #controls-container {
         align: center middle;
         width: 100%;
-        height: auto;
+        height: 3;
         content-align: center middle;
         margin: 0;
         padding: 0;
