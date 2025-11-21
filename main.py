@@ -153,28 +153,43 @@ class RytmuzApp(App):
                 self.perform_search(query)
 
     @work(thread=True)
-    async def perform_search(self, query: str) -> None:
+    def perform_search(self, query: str) -> None:
         """Perform a YouTube search and display results."""
-        results_list = self.query_one("#results-list", ListView)
-        results_list.clear()
-
         try:
             results = self.searcher.search(query, max_results=15)
 
+            # Clear results list from main thread
+            def clear_results():
+                results_list = self.query_one("#results-list", ListView)
+                results_list.clear()
+
+            self.call_from_thread(clear_results)
+
             if not results:
-                self.call_from_thread(results_list.append, ListItem(Label("No results found")))
+                def add_no_results():
+                    results_list = self.query_one("#results-list", ListView)
+                    results_list.append(ListItem(Label("No results found")))
+                self.call_from_thread(add_no_results)
                 return
 
             for result in results:
                 title = result["title"]
                 channel = result["channel"]
-                item_label = Label(f"{title}\n[dim]{channel}[/dim]")
-                item = SearchResultItem(result)
-                item.append(item_label)
-                self.call_from_thread(results_list.append, item)
+
+                def add_result(r=result):
+                    results_list = self.query_one("#results-list", ListView)
+                    item_label = Label(f"{r['title']}\n[dim]{r['channel']}[/dim]")
+                    item = SearchResultItem(r)
+                    item.append(item_label)
+                    results_list.append(item)
+
+                self.call_from_thread(add_result)
 
         except Exception as e:
-            self.call_from_thread(results_list.append, ListItem(Label(f"[red]Error: {e}[/red]")))
+            def add_error():
+                results_list = self.query_one("#results-list", ListView)
+                results_list.append(ListItem(Label(f"[red]Error: {e}[/red]")))
+            self.call_from_thread(add_error)
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle when a search result is selected."""
