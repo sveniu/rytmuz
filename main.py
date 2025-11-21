@@ -30,7 +30,7 @@ class RytmuzApp(App):
 
     #search-container {
         dock: top;
-        height: 3;
+        height: 5;
         padding: 1;
         background: $panel;
     }
@@ -150,7 +150,7 @@ class RytmuzApp(App):
         if event.input.id == "search-input":
             query = event.value.strip()
             if query:
-                await self.perform_search(query)
+                self.perform_search(query)
 
     @work(thread=True)
     async def perform_search(self, query: str) -> None:
@@ -180,7 +180,7 @@ class RytmuzApp(App):
         """Handle when a search result is selected."""
         if isinstance(event.item, SearchResultItem):
             video_data = event.item.video_data
-            await self.play_video(video_data)
+            self.play_video(video_data)
 
     @work(thread=True)
     def play_video(self, video_data: dict) -> None:
