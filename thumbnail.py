@@ -27,10 +27,9 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
         aspect_ratio = image.height / image.width
         new_width = min(max_width, 60)
         # To maintain aspect ratio: if image is W×H, we want new_width chars × new_height chars
-        # where new_width × 1 : new_height × 2 = W : H
+        # where new_width × 1 : new_height × 2 = W : H (accounting for char aspect ~2:1)
         # Therefore: new_height = (new_width × H) / (2 × W) = new_width × aspect_ratio / 2
-        # But multiplying by 1.0 instead of 0.5 gives better proportions
-        new_height = int(new_width * aspect_ratio * 1.0)
+        new_height = int(new_width * aspect_ratio * 0.5)
 
         # Only double height, not width - rich-pixels uses half-blocks for vertical resolution
         # but horizontally it's 1 char = 1 pixel
