@@ -1,5 +1,6 @@
 """YouTube search functionality using Google API."""
 import os
+import html
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -53,10 +54,10 @@ class YouTubeSearcher:
                 snippet = item["snippet"]
                 results.append({
                     "video_id": item["id"]["videoId"],
-                    "title": snippet["title"],
-                    "channel": snippet["channelTitle"],
+                    "title": html.unescape(snippet["title"]),
+                    "channel": html.unescape(snippet["channelTitle"]),
                     "thumbnail_url": snippet["thumbnails"]["high"]["url"],
-                    "description": snippet["description"],
+                    "description": html.unescape(snippet["description"]),
                 })
 
             return results
