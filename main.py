@@ -39,41 +39,62 @@ class RytmuzApp(App):
         width: 100%;
     }
 
-    #results-container {
+    #main-content {
         height: 1fr;
-        overflow-y: auto;
-        padding: 1;
     }
 
-    #player-container {
-        dock: bottom;
-        height: 8;
-        padding: 1;
-        background: $panel;
+    #results-split {
+        height: 100%;
     }
 
-    .control-button {
-        margin: 0 1;
-    }
-
-    #now-playing {
-        text-align: center;
-        padding: 1;
+    #results-list-container {
+        width: 60%;
+        height: 100%;
+        border-right: solid $primary;
     }
 
     #results-list {
         height: 100%;
     }
 
-    SearchResultItem {
+    #preview-pane {
+        width: 40%;
+        height: 100%;
         padding: 1;
-        height: auto;
+        align: center middle;
     }
 
-    #thumbnail-display {
+    SearchResultItem {
+        height: 3;
+        padding: 0 1;
+    }
+
+    SearchResultItem:hover {
+        background: $boost;
+    }
+
+    #player-view {
+        height: 100%;
+        align: center middle;
+    }
+
+    #player-thumbnail {
         width: auto;
         height: auto;
-        padding: 1;
+        margin-bottom: 2;
+    }
+
+    #now-playing {
+        text-align: center;
+        margin: 1;
+    }
+
+    .control-button {
+        margin: 0 1;
+    }
+
+    .hidden {
+        display: none;
     }
     """
 
@@ -88,27 +109,37 @@ class RytmuzApp(App):
         with Container(id="search-container"):
             yield Input(placeholder="Search for music...", id="search-input")
 
-        with Vertical(id="results-container"):
-            yield ListView(id="results-list")
+        with Container(id="main-content"):
+            # Results split view (left: list, right: preview)
+            with Horizontal(id="results-split"):
+                with Vertical(id="results-list-container"):
+                    yield ListView(id="results-list")
+                yield Static("", id="preview-pane")
 
-        with Container(id="player-container"):
-            with Horizontal():
-                yield Static("", id="thumbnail-display")
-                with Vertical():
-                    yield Label("No song playing", id="now-playing")
-                    with Horizontal():
-                        yield Button("⏮ -10s", id="seek-back", classes="control-button")
-                        yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
-                        yield Button("⏭ +10s", id="seek-forward", classes="control-button")
-                        yield Button("🔉 Vol-", id="vol-down", classes="control-button")
-                        yield Button("🔊 Vol+", id="vol-up", classes="control-button")
+            # Player view (shown during playback)
+            with Vertical(id="player-view", classes="hidden"):
+                yield Static("", id="player-thumbnail")
+                yield Label("Loading...", id="now-playing")
+                with Horizontal():
+                    yield Button("⏮ -10s", id="seek-back", classes="control-button")
+                    yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
+                    yield Button("⏭ +10s", id="seek-forward", classes="control-button")
+                    yield Button("🔉 Vol-", id="vol-down", classes="control-button")
+                    yield Button("🔊 Vol+", id="vol-up", classes="control-button")
 
     def action_focus_search(self) -> None:
-        """Focus the search input."""
+        """Focus the search input and show results view."""
+        # Show results view, hide player view
+        self.query_one("#results-split").remove_class("hidden")
+        self.query_one("#player-view").add_class("hidden")
         self.query_one("#search-input", Input).focus()
 
     def action_show_recent(self) -> None:
         """Show recent songs."""
+        # Show results view, hide player view
+        self.query_one("#results-split").remove_class("hidden")
+        self.query_one("#player-view").add_class("hidden")
+
         results_list = self.query_one("#results-list", ListView)
         results_list.clear()
 
@@ -121,7 +152,7 @@ class RytmuzApp(App):
         for song in recent_songs:
             title = song["title"]
             channel = song["channel"]
-            item_label = Label(f"{title}\n[dim]{channel}[/dim]")
+            item_label = Label(f"{title} [dim]· {channel}[/dim]")
             item = SearchResultItem(song, item_label)
             results_list.append(item)
 
@@ -177,7 +208,7 @@ class RytmuzApp(App):
 
                 def add_result(r=result):
                     results_list = self.query_one("#results-list", ListView)
-                    item_label = Label(f"{r['title']}\n[dim]{r['channel']}[/dim]")
+                    item_label = Label(f"{r['title']} [dim]· {r['channel']}[/dim]")
                     item = SearchResultItem(r, item_label)
                     results_list.append(item)
 
@@ -189,10 +220,30 @@ class RytmuzApp(App):
                 results_list.append(ListItem(Label(f"[red]Error: {e}[/red]")))
             self.call_from_thread(add_error)
 
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        """Show thumbnail preview when hovering over a result."""
+        if isinstance(event.item, SearchResultItem):
+            self.show_preview_thumbnail(event.item.video_data)
+
+    @work(thread=True)
+    def show_preview_thumbnail(self, video_data: dict) -> None:
+        """Load and display thumbnail in preview pane."""
+        thumbnail_url = video_data["thumbnail_url"]
+        thumbnail = download_thumbnail(thumbnail_url, max_width=25)
+
+        def update_preview():
+            preview_pane = self.query_one("#preview-pane", Static)
+            preview_pane.update(thumbnail)
+
+        self.call_from_thread(update_preview)
+
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle when a search result is selected."""
         if isinstance(event.item, SearchResultItem):
             video_data = event.item.video_data
+            # Hide results, show player view
+            self.query_one("#results-split").add_class("hidden")
+            self.query_one("#player-view").remove_class("hidden")
             self.play_video(video_data)
 
     @work(thread=True)
@@ -202,22 +253,29 @@ class RytmuzApp(App):
         title = video_data["title"]
         thumbnail_url = video_data["thumbnail_url"]
 
-        now_playing = self.query_one("#now-playing", Label)
-        self.call_from_thread(now_playing.update, f"Loading: {title}")
+        def update_status(msg):
+            now_playing = self.query_one("#now-playing", Label)
+            now_playing.update(msg)
+
+        self.call_from_thread(update_status, f"Loading: {title}")
 
         try:
-            # Download and display thumbnail
-            thumbnail = download_thumbnail(thumbnail_url, max_width=30)
-            thumbnail_display = self.query_one("#thumbnail-display", Static)
-            self.call_from_thread(thumbnail_display.update, thumbnail)
+            # Download and display larger thumbnail
+            thumbnail = download_thumbnail(thumbnail_url, max_width=50)
+
+            def update_thumbnail():
+                thumbnail_display = self.query_one("#player-thumbnail", Static)
+                thumbnail_display.update(thumbnail)
+
+            self.call_from_thread(update_thumbnail)
 
             self.player.play(video_id)
-            self.call_from_thread(now_playing.update, f"▶ Playing: {title}")
+            self.call_from_thread(update_status, f"▶ Playing: {title}")
 
             # Add to history
             self.history.add(video_data)
         except Exception as e:
-            self.call_from_thread(now_playing.update, f"Error: {e}")
+            self.call_from_thread(update_status, f"Error: {e}")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button clicks."""
