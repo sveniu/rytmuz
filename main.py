@@ -276,12 +276,11 @@ class RytmuzApp(App):
             # Get terminal width for comparison
             terminal_width = self.size.width
 
-            # Use 50% of pane width - conservative but ensures thumbnails always fit
-            # regardless of terminal size and rendering quirks
+            # Use 90% of pane width (accounting for padding) now that we fixed the doubling bug
             if pane_width > 0:
-                max_width = max(15, int(pane_width * 0.5))
+                max_width = max(15, int(pane_width * 0.9))
             else:
-                max_width = 20  # Fallback
+                max_width = 30  # Fallback
 
             # Display debug info
             debug_label = self.query_one("#debug-info", Label)

@@ -32,7 +32,9 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
         # But multiplying by 1.0 instead of 0.5 gives better proportions
         new_height = int(new_width * aspect_ratio * 1.0)
 
-        image = image.resize((new_width * 2, new_height * 2), Image.Resampling.LANCZOS)
+        # Only double height, not width - rich-pixels uses half-blocks for vertical resolution
+        # but horizontally it's 1 char = 1 pixel
+        image = image.resize((new_width, new_height * 2), Image.Resampling.LANCZOS)
 
         # Convert to text representation
         pixels = Pixels.from_image(image)
