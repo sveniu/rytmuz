@@ -4,6 +4,10 @@ import requests
 from PIL import Image
 from rich_pixels import Pixels
 
+# In-memory cache for processed thumbnails
+# Key: (url, max_width) -> Value: Pixels object
+_thumbnail_cache: dict[tuple[str, int], Pixels] = {}
+
 
 def download_thumbnail(url: str, max_width: int = 40) -> str:
     """Download and convert a thumbnail to a text-based image.
@@ -15,6 +19,11 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
     Returns:
         Renderable text representation of the image
     """
+    # Check cache first
+    cache_key = (url, max_width)
+    if cache_key in _thumbnail_cache:
+        return _thumbnail_cache[cache_key]
+
     try:
         response = requests.get(url, timeout=5)
         response.raise_for_status()
@@ -37,6 +46,10 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
 
         # Convert to text representation
         pixels = Pixels.from_image(image)
+
+        # Cache the result
+        _thumbnail_cache[cache_key] = pixels
+
         return pixels
 
     except Exception as e:
