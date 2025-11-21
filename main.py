@@ -8,6 +8,7 @@ from textual import work
 
 from youtube_search import YouTubeSearcher
 from thumbnail import download_thumbnail
+from player import AudioPlayer
 
 
 class SearchResultItem(ListItem):
@@ -108,6 +109,9 @@ class RytmuzApp(App):
         else:
             self.searcher = YouTubeSearcher()
 
+        # Initialize audio player
+        self.player = AudioPlayer()
+
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle search when user presses Enter."""
         if event.input.id == "search-input":
@@ -145,11 +149,35 @@ class RytmuzApp(App):
             video_data = event.item.video_data
             await self.play_video(video_data)
 
-    async def play_video(self, video_data: dict) -> None:
+    @work(thread=True)
+    def play_video(self, video_data: dict) -> None:
         """Start playing a video."""
+        video_id = video_data["video_id"]
+        title = video_data["title"]
+
         now_playing = self.query_one("#now-playing", Label)
-        now_playing.update(f"Playing: {video_data['title']}")
-        # Actual playback will be implemented later
+        self.call_from_thread(now_playing.update, f"Loading: {title}")
+
+        try:
+            self.player.play(video_id)
+            self.call_from_thread(now_playing.update, f"▶ Playing: {title}")
+        except Exception as e:
+            self.call_from_thread(now_playing.update, f"Error: {e}")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button clicks."""
+        button_id = event.button.id
+
+        if button_id == "play-pause":
+            self.player.toggle_pause()
+        elif button_id == "seek-back":
+            self.player.seek(-10)
+        elif button_id == "seek-forward":
+            self.player.seek(10)
+        elif button_id == "vol-down":
+            self.player.adjust_volume(-5)
+        elif button_id == "vol-up":
+            self.player.adjust_volume(5)
 
 
 def main():
