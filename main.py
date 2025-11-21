@@ -74,22 +74,22 @@ class RytmuzApp(App):
     }
 
     #player-view {
-        height: auto;
-        align: center top;
-        padding: 2 0;
+        height: 100%;
+        layout: vertical;
     }
 
     #player-content {
         width: 100%;
-        height: auto;
-        padding: 0;
-        margin: 0;
+        height: 1fr;
+        overflow: hidden;
+        align: center middle;
+        content-align: center middle;
     }
 
     #player-thumbnail {
         width: 100%;
         height: auto;
-        margin: 0 0 1 0;
+        margin: 0;
         padding: 0;
         align: center middle;
         content-align: center middle;
@@ -149,16 +149,16 @@ class RytmuzApp(App):
                 yield Static("", id="preview-pane")
 
             # Player view (shown during playback)
-            with Container(id="player-view", classes="hidden"):
-                with Vertical(id="player-content"):
+            with Vertical(id="player-view", classes="hidden"):
+                with Container(id="player-content"):
                     yield Static("", id="player-thumbnail")
-                    yield Label("Loading...", id="now-playing")
-                    with Horizontal(id="controls-container"):
-                        yield Button("⏮ -10s", id="seek-back", classes="control-button")
-                        yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
-                        yield Button("⏭ +10s", id="seek-forward", classes="control-button")
-                        yield Button("🔉 Vol-", id="vol-down", classes="control-button")
-                        yield Button("🔊 Vol+", id="vol-up", classes="control-button")
+                yield Label("Loading...", id="now-playing")
+                with Horizontal(id="controls-container"):
+                    yield Button("⏮ -10s", id="seek-back", classes="control-button")
+                    yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
+                    yield Button("⏭ +10s", id="seek-forward", classes="control-button")
+                    yield Button("🔉 Vol-", id="vol-down", classes="control-button")
+                    yield Button("🔊 Vol+", id="vol-up", classes="control-button")
 
         # Debug info at bottom
         yield Label("", id="debug-info")
@@ -322,30 +322,10 @@ class RytmuzApp(App):
             self.query_one("#results-split").add_class("hidden")
             self.query_one("#player-view").remove_class("hidden")
 
-            # Calculate thumbnail size - consider both width and height constraints
-            # Account for actual UI elements:
-            # - Search bar: 5 lines
-            # - Player padding top: 2 lines
-            # - Thumbnail margin bottom: 1 line
-            # - Title: 1 line
-            # - Title margin bottom: 1 line
-            # - Controls: 3 lines
-            # - Debug bar: 1 line
-            # Total: 14 lines
+            # Simple approach: size based on width, let layout constrain height
             terminal_width = self.size.width
-            terminal_height = self.size.height
-
-            # Max width: 60% of terminal width
-            max_thumb_width = int(terminal_width * 0.6)
-
-            # Max height: terminal height minus actual UI elements
-            available_height = terminal_height - 14
-            # Convert height to width (aspect ratio 16:9, with 0.5 multiplier)
-            # available_height chars * 2 (rich-pixels) / 0.5625 (9/16 aspect)
-            max_thumb_width_from_height = int(available_height * 2 / 0.5625)
-
-            # Use the smaller of the two constraints (removed 100-char cap)
-            thumb_width = min(max_thumb_width, max_thumb_width_from_height)
+            # Use 60% of terminal width
+            thumb_width = int(terminal_width * 0.6)
 
             self.play_video(video_data, thumb_width)
 
