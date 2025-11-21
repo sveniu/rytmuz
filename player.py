@@ -1,9 +1,14 @@
 """Audio playback using yt-dlp and mpv."""
 import subprocess
 import threading
+import socket
+import json
+import logging
 from typing import Optional, Callable
 
 from cache import AudioCache
+
+logger = logging.getLogger(__name__)
 
 
 class AudioPlayer:
@@ -112,7 +117,7 @@ class AudioPlayer:
     def toggle_pause(self) -> None:
         """Toggle pause/play state."""
         if self.mpv_process:
-            self._send_command("cycle pause")
+            self._send_command(["cycle", "pause"])
 
     def seek(self, seconds: int) -> None:
         """Seek forward or backward.
@@ -121,7 +126,7 @@ class AudioPlayer:
             seconds: Number of seconds to seek (positive or negative)
         """
         if self.mpv_process:
-            self._send_command(f"seek {seconds}")
+            self._send_command(["seek", seconds])
 
     def adjust_volume(self, amount: int) -> None:
         """Adjust volume.
@@ -130,26 +135,32 @@ class AudioPlayer:
             amount: Amount to adjust (positive or negative)
         """
         if self.mpv_process:
-            self._send_command(f"add volume {amount}")
+            self._send_command(["add", "volume", amount])
 
-    def _send_command(self, command: str) -> None:
-        """Send command to mpv via IPC.
+    def _send_command(self, command: list) -> None:
+        """Send command to mpv via IPC using native Python sockets.
 
         Args:
-            command: MPV command to send
+            command: MPV command as a list (e.g., ["seek", 10] or ["cycle", "pause"])
         """
         try:
-            # Build JSON command for mpv IPC
-            cmd_parts = command.split()
-            cmd_json = '{{ "command": [{}] }}\n'.format(
-                ", ".join(f'"{c}"' for c in cmd_parts)
-            )
-            subprocess.run(
-                ["socat", "-", self._ipc_socket],
-                input=cmd_json,
-                capture_output=True,
-                text=True,
-                timeout=1
-            )
-        except Exception:
-            pass  # Silently ignore IPC failures
+            # Create Unix domain socket
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.settimeout(1.0)
+
+            # Connect to mpv IPC socket
+            sock.connect(self._ipc_socket)
+
+            # Build and send JSON command
+            cmd_json = json.dumps({"command": command}) + "\n"
+            sock.sendall(cmd_json.encode('utf-8'))
+
+            # Read response (optional, but helps catch errors)
+            response = sock.recv(4096).decode('utf-8')
+            logger.debug(f"Sent command {command}, response: {response.strip()}")
+
+            sock.close()
+        except (socket.error, ConnectionRefusedError, FileNotFoundError) as e:
+            logger.warning(f"Failed to send mpv command {command}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error sending mpv command {command}: {e}")
