@@ -201,7 +201,9 @@ class RytmuzApp(App):
 
     def on_mount(self) -> None:
         """Called when app starts."""
+        self.log("=" * 80)
         self.log("RYTMUZ starting up")
+        self.log(f"Textual version: {self.app.TEXTUAL_VERSION if hasattr(self.app, 'TEXTUAL_VERSION') else 'unknown'}")
         self.query_one("#search-input", Input).focus()
 
         # Initialize YouTube searcher
