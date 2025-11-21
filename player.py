@@ -139,9 +139,14 @@ class AudioPlayer:
             command: MPV command to send
         """
         try:
+            # Build JSON command for mpv IPC
+            cmd_parts = command.split()
+            cmd_json = '{{ "command": [{}] }}\n'.format(
+                ", ".join(f'"{c}"' for c in cmd_parts)
+            )
             subprocess.run(
                 ["socat", "-", self._ipc_socket],
-                input=f'{{ "command": [{", ".join(f\'"{c}\' for c in command.split())}] }}\n',
+                input=cmd_json,
                 capture_output=True,
                 text=True,
                 timeout=1
