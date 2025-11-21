@@ -99,7 +99,8 @@ class RytmuzApp(App):
 
     #controls-container {
         align: center middle;
-        width: auto;
+        width: 100%;
+        content-align: center middle;
     }
 
     .control-button {
@@ -313,15 +314,15 @@ class RytmuzApp(App):
             self.query_one("#player-view").remove_class("hidden")
 
             # Calculate thumbnail size - consider both width and height constraints
-            # Leave room for title (2 lines), controls (3 lines), margins/padding (~5 lines)
+            # Leave room for title (~2 lines), controls (~3 lines), search bar (~5 lines)
             terminal_width = self.size.width
             terminal_height = self.size.height
 
             # Max width: 60% of terminal width
             max_thumb_width = int(terminal_width * 0.6)
 
-            # Max height: terminal height minus UI elements (search bar ~5, controls ~10)
-            available_height = terminal_height - 15
+            # Max height: terminal height minus UI elements (search bar + title + controls + debug)
+            available_height = terminal_height - 10  # Reduced from 15 to allow larger thumbnails
             # Convert height to width (aspect ratio 16:9, with 0.5 multiplier)
             # available_height chars * 2 (rich-pixels) / 0.5625 (9/16 aspect)
             max_thumb_width_from_height = int(available_height * 2 / 0.5625)
