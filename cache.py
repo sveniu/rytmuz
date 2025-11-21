@@ -312,3 +312,160 @@ class ThumbnailCache:
 
         for key in expired:
             self._remove(key)
+
+
+class AudioFileCache:
+    """Cache full audio files for instant replay."""
+
+    def __init__(
+        self,
+        cache_dir: str = ".cache/audio",
+        max_size_mb: int = 500,
+        max_files: int = 100
+    ):
+        """Initialize audio file cache.
+
+        Args:
+            cache_dir: Directory to store cached audio files
+            max_size_mb: Maximum cache size in megabytes
+            max_files: Maximum number of files to cache
+        """
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.metadata_file = self.cache_dir / "metadata.json"
+        self.metadata: dict = {}
+        self.max_size_bytes = max_size_mb * 1024 * 1024
+        self.max_files = max_files
+        self.load_metadata()
+
+    def load_metadata(self) -> None:
+        """Load cache metadata from disk."""
+        if self.metadata_file.exists():
+            try:
+                with open(self.metadata_file, "r") as f:
+                    self.metadata = json.load(f)
+            except Exception:
+                self.metadata = {}
+
+    def save_metadata(self) -> None:
+        """Save cache metadata to disk."""
+        try:
+            with open(self.metadata_file, "w") as f:
+                json.dump(self.metadata, f, indent=2)
+        except Exception:
+            pass
+
+    def get_path(self, video_id: str) -> Optional[Path]:
+        """Get path to cached audio file if it exists.
+
+        Args:
+            video_id: YouTube video ID
+
+        Returns:
+            Path to cached file or None if not cached
+        """
+        cache_file = self.cache_dir / f"{video_id}.m4a"
+
+        if cache_file.exists() and video_id in self.metadata:
+            # Update last accessed time and play count
+            self.metadata[video_id]["last_accessed"] = time.time()
+            self.metadata[video_id]["play_count"] = self.metadata[video_id].get("play_count", 0) + 1
+            self.save_metadata()
+            return cache_file
+
+        return None
+
+    def set(self, video_id: str, file_path: Path) -> None:
+        """Add an audio file to the cache.
+
+        Args:
+            video_id: YouTube video ID
+            file_path: Path to the downloaded audio file
+        """
+        # Check if file exists
+        if not file_path.exists():
+            return
+
+        cache_file = self.cache_dir / f"{video_id}.m4a"
+
+        try:
+            # Move/copy file to cache
+            if file_path != cache_file:
+                file_path.rename(cache_file)
+
+            # Get file size
+            file_size = cache_file.stat().st_size
+
+            # Update metadata
+            self.metadata[video_id] = {
+                "size": file_size,
+                "cached_at": time.time(),
+                "last_accessed": time.time(),
+                "play_count": 0
+            }
+            self.save_metadata()
+
+            # Enforce cache limits
+            self._enforce_limits()
+
+        except Exception:
+            pass
+
+    def _enforce_limits(self) -> None:
+        """Remove oldest files if cache exceeds limits."""
+        # Calculate total size
+        total_size = sum(entry["size"] for entry in self.metadata.values())
+        num_files = len(self.metadata)
+
+        # Check if we need to evict
+        if total_size <= self.max_size_bytes and num_files <= self.max_files:
+            return
+
+        # Sort by last accessed time (LRU)
+        sorted_items = sorted(
+            self.metadata.items(),
+            key=lambda x: x[1].get("last_accessed", 0)
+        )
+
+        # Remove oldest until under limits
+        for video_id, entry in sorted_items:
+            if total_size <= self.max_size_bytes and num_files <= self.max_files:
+                break
+
+            # Remove file
+            cache_file = self.cache_dir / f"{video_id}.m4a"
+            if cache_file.exists():
+                try:
+                    cache_file.unlink()
+                    total_size -= entry["size"]
+                    num_files -= 1
+                except Exception:
+                    pass
+
+            # Remove metadata
+            if video_id in self.metadata:
+                del self.metadata[video_id]
+
+        self.save_metadata()
+
+    def get_cache_size(self) -> tuple[int, int]:
+        """Get current cache size and file count.
+
+        Returns:
+            Tuple of (total_bytes, file_count)
+        """
+        total_size = sum(entry["size"] for entry in self.metadata.values())
+        return (total_size, len(self.metadata))
+
+    def clear(self) -> None:
+        """Clear all cached audio files."""
+        for video_id in list(self.metadata.keys()):
+            cache_file = self.cache_dir / f"{video_id}.m4a"
+            if cache_file.exists():
+                try:
+                    cache_file.unlink()
+                except Exception:
+                    pass
+
+        self.metadata = {}
+        self.save_metadata()

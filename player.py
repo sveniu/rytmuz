@@ -4,9 +4,10 @@ import threading
 import socket
 import json
 import logging
+from pathlib import Path
 from typing import Optional, Callable
 
-from cache import AudioCache
+from cache import AudioCache, AudioFileCache
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class AudioPlayer:
         self.is_playing: bool = False
         self._ipc_socket = "/tmp/rytmuz_mpv_socket"
         self.cache = AudioCache()
+        self.file_cache = AudioFileCache()
 
     def get_audio_url(self, video_id: str) -> str:
         """Get the direct audio URL using yt-dlp with caching.
@@ -41,7 +43,7 @@ class AudioPlayer:
 
         try:
             result = subprocess.run(
-                ["yt-dlp", "-g", "-f", "bestaudio", youtube_url],
+                ["yt-dlp", "-g", "-f", "bestaudio", "--force-ipv4", youtube_url],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -69,8 +71,19 @@ class AudioPlayer:
         self.stop()
 
         try:
-            # Get audio URL
-            audio_url = self.get_audio_url(video_id)
+            # Check for cached audio file first
+            cached_file = self.file_cache.get_path(video_id)
+
+            if cached_file:
+                # Use cached file - instant playback!
+                audio_url = str(cached_file)
+                logger.info(f"Playing from cache: {video_id}")
+            else:
+                # Stream from URL and download in background
+                audio_url = self.get_audio_url(video_id)
+                logger.info(f"Streaming {video_id}, starting background download")
+                # Start background download
+                self._download_audio_background(video_id)
 
             # Start mpv with IPC for control
             # Capture stderr to diagnose intermittent audio issues
@@ -176,3 +189,76 @@ class AudioPlayer:
             logger.warning(f"Failed to send mpv command {command}: {e}")
         except Exception as e:
             logger.error(f"Unexpected error sending mpv command {command}: {e}")
+
+    def _download_audio_background(self, video_id: str) -> None:
+        """Start background download of audio file.
+
+        Args:
+            video_id: YouTube video ID to download
+        """
+        # Start download in background thread
+        thread = threading.Thread(
+            target=self._download_audio,
+            args=(video_id,),
+            daemon=True,
+            name=f"download-{video_id}"
+        )
+        thread.start()
+
+    def _download_audio(self, video_id: str) -> None:
+        """Download full audio file to cache.
+
+        Args:
+            video_id: YouTube video ID to download
+        """
+        try:
+            # Check if already cached
+            if self.file_cache.get_path(video_id):
+                logger.debug(f"Audio already cached: {video_id}")
+                return
+
+            # Create temp file for download
+            temp_file = Path(f".cache/audio/{video_id}.tmp.m4a")
+            temp_file.parent.mkdir(parents=True, exist_ok=True)
+
+            youtube_url = f"https://www.youtube.com/watch?v={video_id}"
+
+            logger.info(f"Downloading audio for {video_id}")
+
+            # Download using yt-dlp with concurrent fragments for speed
+            result = subprocess.run(
+                [
+                    "yt-dlp",
+                    "-f", "bestaudio",
+                    "--concurrent-fragments", "4",
+                    "--force-ipv4",
+                    "-o", str(temp_file),
+                    youtube_url
+                ],
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minute timeout
+            )
+
+            if result.returncode == 0 and temp_file.exists():
+                # Move to cache
+                self.file_cache.set(video_id, temp_file)
+                logger.info(f"Audio cached successfully: {video_id}")
+            else:
+                logger.warning(f"Failed to download audio for {video_id}: {result.stderr}")
+                # Clean up temp file
+                if temp_file.exists():
+                    temp_file.unlink()
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"Download timeout for {video_id}")
+            # Clean up temp file
+            temp_file = Path(f".cache/audio/{video_id}.tmp.m4a")
+            if temp_file.exists():
+                temp_file.unlink()
+        except Exception as e:
+            logger.error(f"Download error for {video_id}: {type(e).__name__}: {e}")
+            # Clean up temp file
+            temp_file = Path(f".cache/audio/{video_id}.tmp.m4a")
+            if temp_file.exists():
+                temp_file.unlink()
