@@ -201,6 +201,7 @@ class RytmuzApp(App):
 
     def on_mount(self) -> None:
         """Called when app starts."""
+        self.log("RYTMUZ starting up")
         self.query_one("#search-input", Input).focus()
 
         # Initialize YouTube searcher
@@ -209,26 +210,33 @@ class RytmuzApp(App):
             with open(api_key_file) as f:
                 api_key = f.read().strip()
             self.searcher = YouTubeSearcher(api_key)
+            self.log("YouTube searcher initialized with API key from file")
         else:
             self.searcher = YouTubeSearcher()
+            self.log("YouTube searcher initialized with API key from env")
 
         # Initialize audio player
         self.player = AudioPlayer()
+        self.log("Audio player initialized")
 
         # Initialize play history
         self.history = PlayHistory()
+        self.log(f"Play history loaded: {len(self.history.get_recent(50))} songs")
 
     def on_unmount(self) -> None:
         """Called when app exits - cleanup."""
+        self.log("RYTMUZ shutting down")
         # Stop any playing audio
         if hasattr(self, 'player'):
             self.player.stop()
+            self.log("Audio player stopped")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle search when user presses Enter."""
         if event.input.id == "search-input":
             query = event.value.strip()
             if query:
+                self.log(f"User submitted search query: '{query}'")
                 # Ensure results view is visible
                 self.query_one("#results-split").remove_class("hidden")
                 self.query_one("#player-view").add_class("hidden")
@@ -340,10 +348,15 @@ class RytmuzApp(App):
             now_playing = self.query_one("#now-playing", Label)
             now_playing.update(msg)
 
+        def log_msg(msg):
+            self.call_from_thread(self.log, msg)
+
+        log_msg(f"Starting playback: '{title}' (video_id={video_id})")
         self.call_from_thread(update_status, f"Loading: {title}")
 
         try:
             # Download and display thumbnail at calculated size
+            log_msg(f"Downloading thumbnail (width={thumb_width})")
             thumbnail = download_thumbnail(thumbnail_url, max_width=thumb_width)
 
             def update_thumbnail():
@@ -351,13 +364,18 @@ class RytmuzApp(App):
                 thumbnail_display.update(thumbnail)
 
             self.call_from_thread(update_thumbnail)
+            log_msg("Thumbnail displayed")
 
+            log_msg("Starting mpv playback")
             self.player.play(video_id)
             self.call_from_thread(update_status, f"▶ Playing: {title}")
+            log_msg("Playback started successfully")
 
             # Add to history
             self.history.add(video_data)
+            log_msg("Added to play history")
         except Exception as e:
+            log_msg(f"Playback error: {type(e).__name__}: {e}")
             self.call_from_thread(update_status, f"Error: {e}")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

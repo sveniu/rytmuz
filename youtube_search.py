@@ -1,8 +1,11 @@
 """YouTube search functionality using Google API."""
 import os
 import html
+import logging
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+logger = logging.getLogger(__name__)
 
 
 class YouTubeSearcher:
@@ -36,6 +39,8 @@ class YouTubeSearcher:
                 - description: Video description
         """
         try:
+            logger.info(f"Searching YouTube for: '{query}' (max_results={max_results})")
+
             request = self.youtube.search().list(
                 part="snippet",
                 q=query,
@@ -50,10 +55,14 @@ class YouTubeSearcher:
             response = request.execute()
 
             results = []
+            skipped_count = 0
+
             for item in response.get("items", []):
                 try:
                     # Skip if not a video or missing required fields
                     if "id" not in item or "videoId" not in item["id"]:
+                        skipped_count += 1
+                        logger.warning(f"Skipping result with missing videoId. Item id structure: {item.get('id', 'MISSING')}")
                         continue
 
                     snippet = item["snippet"]
@@ -65,10 +74,14 @@ class YouTubeSearcher:
                         "description": html.unescape(snippet["description"]),
                     })
                 except (KeyError, TypeError) as e:
-                    # Skip malformed results
+                    # Skip malformed results but log what went wrong
+                    skipped_count += 1
+                    logger.warning(f"Skipping malformed result - {type(e).__name__}: {e}. Item keys: {item.keys()}, id: {item.get('id', 'MISSING')}")
                     continue
 
+            logger.info(f"Search returned {len(results)} valid results ({skipped_count} skipped)")
             return results
 
         except HttpError as e:
+            logger.error(f"YouTube API error: {e}")
             raise Exception(f"YouTube API error: {e}")
