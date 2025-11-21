@@ -80,12 +80,22 @@ class YouTubeSearcher:
 
                 try:
                     data = json.loads(line)
+
+                    # Get thumbnail URL - yt-dlp returns an array of thumbnails
+                    thumbnail_url = ""
+                    if "thumbnails" in data and data["thumbnails"]:
+                        # Use the last (highest quality) thumbnail
+                        thumbnail_url = data["thumbnails"][-1].get("url", "")
+
+                    # Get description, handle null values
+                    description = data.get("description") or ""
+
                     results.append({
                         "video_id": data["id"],
                         "title": html.unescape(data.get("title", "Unknown")),
                         "channel": html.unescape(data.get("uploader", "Unknown")),
-                        "thumbnail_url": data.get("thumbnail", ""),
-                        "description": html.unescape(data.get("description", "")),
+                        "thumbnail_url": thumbnail_url,
+                        "description": html.unescape(description) if description else "",
                     })
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to parse yt-dlp result line: {e}")
