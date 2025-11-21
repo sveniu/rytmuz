@@ -51,14 +51,22 @@ class YouTubeSearcher:
 
             results = []
             for item in response.get("items", []):
-                snippet = item["snippet"]
-                results.append({
-                    "video_id": item["id"]["videoId"],
-                    "title": html.unescape(snippet["title"]),
-                    "channel": html.unescape(snippet["channelTitle"]),
-                    "thumbnail_url": snippet["thumbnails"]["high"]["url"],
-                    "description": html.unescape(snippet["description"]),
-                })
+                try:
+                    # Skip if not a video or missing required fields
+                    if "id" not in item or "videoId" not in item["id"]:
+                        continue
+
+                    snippet = item["snippet"]
+                    results.append({
+                        "video_id": item["id"]["videoId"],
+                        "title": html.unescape(snippet["title"]),
+                        "channel": html.unescape(snippet["channelTitle"]),
+                        "thumbnail_url": snippet["thumbnails"]["high"]["url"],
+                        "description": html.unescape(snippet["description"]),
+                    })
+                except (KeyError, TypeError) as e:
+                    # Skip malformed results
+                    continue
 
             return results
 
