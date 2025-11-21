@@ -236,21 +236,17 @@ class RytmuzApp(App):
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         """Show thumbnail preview when hovering over a result."""
         if isinstance(event.item, SearchResultItem):
-            self.show_preview_thumbnail(event.item.video_data)
+            # Get preview pane dimensions from main thread
+            preview_pane = self.query_one("#preview-pane", Static)
+            pane_width = preview_pane.size.width
+            # Use 80% of pane width to leave padding, with sensible bounds
+            max_width = max(20, min(35, int(pane_width * 0.8))) if pane_width > 0 else 30
+            self.show_preview_thumbnail(event.item.video_data, max_width)
 
     @work(thread=True)
-    def show_preview_thumbnail(self, video_data: dict) -> None:
+    def show_preview_thumbnail(self, video_data: dict, max_width: int) -> None:
         """Load and display thumbnail in preview pane."""
         thumbnail_url = video_data["thumbnail_url"]
-
-        # Get preview pane dimensions to size thumbnail appropriately
-        preview_pane = self.query_one("#preview-pane", Static)
-        pane_width = preview_pane.size.width
-        pane_height = preview_pane.size.height
-
-        # Use 90% of pane width to leave some padding
-        max_width = int(pane_width * 0.9) if pane_width > 0 else 30
-
         thumbnail = download_thumbnail(thumbnail_url, max_width=max_width)
 
         def update_preview():
