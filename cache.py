@@ -88,3 +88,94 @@ class AudioCache:
 
         if expired:
             self.save()
+
+
+class SearchCache:
+    """Cache YouTube search results to reduce API quota usage."""
+
+    def __init__(self, cache_dir: str = ".cache", ttl: int = 86400):
+        """Initialize search cache.
+
+        Args:
+            cache_dir: Directory to store cache data
+            ttl: Time to live in seconds (default: 24 hours)
+        """
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_file = self.cache_dir / "search_results.json"
+        self.cache: dict = {}
+        self.ttl = ttl
+        self.load()
+
+    def load(self) -> None:
+        """Load cache from disk."""
+        if self.cache_file.exists():
+            try:
+                with open(self.cache_file, "r") as f:
+                    self.cache = json.load(f)
+            except Exception:
+                self.cache = {}
+
+    def save(self) -> None:
+        """Save cache to disk."""
+        try:
+            with open(self.cache_file, "w") as f:
+                json.dump(self.cache, f, indent=2)
+        except Exception:
+            pass
+
+    def get(self, query: str) -> Optional[list]:
+        """Get cached search results if available and not expired.
+
+        Args:
+            query: Search query string (case-insensitive)
+
+        Returns:
+            Cached search results or None if not cached or expired
+        """
+        # Normalize query to lowercase for case-insensitive matching
+        key = query.lower().strip()
+
+        if key in self.cache:
+            entry = self.cache[key]
+            timestamp = entry.get("timestamp", 0)
+
+            # Check if expired
+            if time.time() - timestamp < self.ttl:
+                return entry.get("results")
+
+            # Remove expired entry
+            del self.cache[key]
+            self.save()
+
+        return None
+
+    def set(self, query: str, results: list) -> None:
+        """Cache search results.
+
+        Args:
+            query: Search query string
+            results: List of search result dictionaries
+        """
+        # Normalize query to lowercase for case-insensitive matching
+        key = query.lower().strip()
+
+        self.cache[key] = {
+            "results": results,
+            "timestamp": time.time()
+        }
+        self.save()
+
+    def clear_expired(self) -> None:
+        """Remove all expired entries from cache."""
+        now = time.time()
+        expired = [
+            query for query, entry in self.cache.items()
+            if now - entry.get("timestamp", 0) >= self.ttl
+        ]
+
+        for query in expired:
+            del self.cache[query]
+
+        if expired:
+            self.save()

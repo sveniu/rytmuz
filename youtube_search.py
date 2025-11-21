@@ -6,6 +6,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from mock_data import MOCK_SEARCH_RESULTS
+from cache import SearchCache
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class YouTubeSearcher:
             mock_mode: If True, use mock data instead of calling the real API (for development).
         """
         self.mock_mode = mock_mode
+        self.cache = SearchCache()  # 24-hour TTL by default
 
         if not mock_mode:
             self.api_key = api_key or os.environ.get("YOUTUBE_API_KEY")
@@ -48,10 +50,18 @@ class YouTubeSearcher:
                 - thumbnail_url: URL to the video thumbnail
                 - description: Video description
         """
+        # Check cache first
+        cached_results = self.cache.get(query)
+        if cached_results is not None:
+            logger.info(f"Cache hit for search: '{query}' ({len(cached_results)} results)")
+            return cached_results[:max_results]
+
         # Mock mode: return fake data without calling API
         if self.mock_mode:
             logger.info(f"Mock search for: '{query}' (returning {min(max_results, len(MOCK_SEARCH_RESULTS))} results)")
-            return MOCK_SEARCH_RESULTS[:max_results]
+            results = MOCK_SEARCH_RESULTS[:max_results]
+            self.cache.set(query, results)
+            return results
 
         try:
             logger.info(f"Searching YouTube for: '{query}' (max_results={max_results})")
@@ -95,6 +105,10 @@ class YouTubeSearcher:
                     continue
 
             logger.info(f"Search returned {len(results)} valid results ({skipped_count} skipped)")
+
+            # Cache the results
+            self.cache.set(query, results)
+
             return results
 
         except HttpError as e:
