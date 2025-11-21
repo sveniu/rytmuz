@@ -276,9 +276,9 @@ class RytmuzApp(App):
             # Get terminal width for comparison
             terminal_width = self.size.width
 
-            # Use 90% of pane width (accounting for padding) now that we fixed the doubling bug
+            # Use almost full pane width, leaving just 2 chars for minimal padding
             if pane_width > 0:
-                max_width = max(15, int(pane_width * 0.9))
+                max_width = max(15, pane_width - 2)
             else:
                 max_width = 30  # Fallback
 
