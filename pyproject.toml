@@ -8,4 +8,5 @@ dependencies = [
     "requests>=2.32.5",
     "rich-pixels>=3.0.1",
     "textual>=6.6.0",
+    "textual-dev>=1.8.0",
 ]
