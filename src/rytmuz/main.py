@@ -470,9 +470,8 @@ class RytmuzApp(App):
         self.history = PlayHistory()
         self.log(f"Play history loaded: {len(self.history.get_recent(50))} songs")
 
-        # Show recent tracks on startup if any exist
-        if len(self.history.get_recent(1)) > 0:
-            self.action_show_recent()
+        # Show recent tracks on startup (or empty state if no history)
+        self.action_show_recent()
 
     def on_unmount(self) -> None:
         """Called when app exits - cleanup."""
