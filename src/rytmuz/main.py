@@ -196,6 +196,12 @@ class RytmuzApp(App):
         width: 1fr;
     }
 
+    #recent-button {
+        width: 10;
+        min-width: 10;
+        margin-left: 1;
+    }
+
     #help-button {
         width: 5;
         min-width: 5;
@@ -333,6 +339,7 @@ class RytmuzApp(App):
         with Container(id="search-container"):
             with Horizontal(id="search-bar"):
                 yield Input(placeholder=_("search_placeholder"), id="search-input")
+                yield Button(_("recent_button"), id="recent-button")
                 yield Button("?", id="help-button")
 
         with Container(id="main-content"):
@@ -462,6 +469,10 @@ class RytmuzApp(App):
         # Initialize play history
         self.history = PlayHistory()
         self.log(f"Play history loaded: {len(self.history.get_recent(50))} songs")
+
+        # Show recent tracks on startup if any exist
+        if len(self.history.get_recent(1)) > 0:
+            self.action_show_recent()
 
     def on_unmount(self) -> None:
         """Called when app exits - cleanup."""
@@ -598,6 +609,8 @@ class RytmuzApp(App):
 
         if button_id == "help-button":
             self.action_show_help()
+        elif button_id == "recent-button":
+            self.action_show_recent()
         elif button_id == "play-pause":
             self.player.toggle_pause()
         elif button_id == "seek-back":

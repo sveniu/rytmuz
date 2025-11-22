@@ -23,6 +23,7 @@ STRINGS = {
         "seek_forward": "⏭ +10s",
         "vol_down": "🔉 Vol-",
         "vol_up": "🔊 Vol+",
+        "recent_button": "⏱ Recent",
 
         # Empty states
         "no_recent_songs": "No recent songs",
@@ -74,6 +75,7 @@ STRINGS = {
         "seek_forward": "⏭ +10s",
         "vol_down": "🔉 Vol-",
         "vol_up": "🔊 Vol+",
+        "recent_button": "⏱ Nylige",
 
         # Empty states
         "no_recent_songs": "Ingen nylige sanger",
