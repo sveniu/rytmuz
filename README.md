@@ -44,14 +44,10 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
 
 ## Usage
 
+- **Help**: Press F1 or click the ? button to see all keyboard shortcuts and controls
 - **Search**: Type in the search box and press Enter, or press Ctrl+S to focus search
 - **Play song**: Click on a search result or press Enter when focused
-- **Recent songs**: Press Ctrl+R to view recently played songs
-- **Controls**:
-  - Play/Pause: Click the ⏯ button
-  - Seek backward: ⏮ (-10s)
-  - Seek forward: ⏭ (+10s)
-  - Volume: 🔉/🔊 buttons
+- **Recent songs**: Click the ⏱ Recent button or press Ctrl+R
 - **Quit**: Press Ctrl+C
 
 ## Design Decisions
