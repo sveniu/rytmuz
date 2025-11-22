@@ -56,6 +56,7 @@ class HelpScreen(ModalScreen):
 
     BINDINGS = [
         Binding("escape", "dismiss", "Close", show=False),
+        Binding("f1", "dismiss", "Close", show=False),
         Binding("q", "dismiss", "Close", show=False),
         Binding("h", "dismiss", "Close", show=False),
         Binding("question_mark", "dismiss", "Close", show=False),
@@ -103,36 +104,37 @@ class HelpScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         """Create help dialog contents."""
         with Container(id="help-dialog"):
-            yield Label("RYTMUZ - Help", id="help-title")
+            yield Label(_("help_title"), id="help-title")
             with ScrollableContainer(id="help-content"):
                 # Keyboard shortcuts
-                yield Static("Keyboard Shortcuts", classes="help-section-title")
-                yield Static("  Ctrl+S    Focus search input", classes="help-item")
-                yield Static("  Ctrl+R    Show recent songs", classes="help-item")
-                yield Static("  Space     Play/Pause", classes="help-item")
-                yield Static("  Escape    Return to player", classes="help-item")
-                yield Static("  h or ?    Show this help", classes="help-item")
-                yield Static("  Ctrl+C    Quit", classes="help-item")
+                yield Static(_("help_keyboard_shortcuts"), classes="help-section-title")
+                yield Static(f"  {_('help_ctrl_s')}", classes="help-item")
+                yield Static(f"  {_('help_ctrl_r')}", classes="help-item")
+                yield Static(f"  {_('help_space')}", classes="help-item")
+                yield Static(f"  {_('help_escape')}", classes="help-item")
+                yield Static(f"  {_('help_f1')}", classes="help-item")
+                yield Static(f"  {_('help_h')}", classes="help-item")
+                yield Static(f"  {_('help_ctrl_c')}", classes="help-item")
 
                 # Player controls
                 yield Static("", classes="help-section")
-                yield Static("Player Controls", classes="help-section-title")
-                yield Static("  ⏮  -10s     Seek backward 10 seconds", classes="help-item")
-                yield Static("  ⏯  Play/Pause   Toggle playback", classes="help-item")
-                yield Static("  ⏭  +10s     Seek forward 10 seconds", classes="help-item")
-                yield Static("  🔉 Vol-     Decrease volume", classes="help-item")
-                yield Static("  🔊 Vol+     Increase volume", classes="help-item")
+                yield Static(_("help_player_controls"), classes="help-section-title")
+                yield Static(f"  {_('help_seek_back')}", classes="help-item")
+                yield Static(f"  {_('help_play_pause')}", classes="help-item")
+                yield Static(f"  {_('help_seek_forward')}", classes="help-item")
+                yield Static(f"  {_('help_vol_down')}", classes="help-item")
+                yield Static(f"  {_('help_vol_up')}", classes="help-item")
 
                 # Usage tips
                 yield Static("", classes="help-section")
-                yield Static("Usage Tips", classes="help-section-title")
-                yield Static("  • Type in search box and press Enter to search", classes="help-item")
-                yield Static("  • Click on a song card to play it", classes="help-item")
-                yield Static("  • Recent songs are cached for instant replay", classes="help-item")
-                yield Static("  • Press Escape to return to player view", classes="help-item")
+                yield Static(_("help_usage_tips"), classes="help-section-title")
+                yield Static(f"  {_('help_tip_search')}", classes="help-item")
+                yield Static(f"  {_('help_tip_play')}", classes="help-item")
+                yield Static(f"  {_('help_tip_cache')}", classes="help-item")
+                yield Static(f"  {_('help_tip_escape')}", classes="help-item")
 
                 yield Static("", classes="help-section")
-                yield Static("Press Escape, h, ?, or q to close this help", classes="help-item")
+                yield Static(_("help_close"), classes="help-item")
 
     def action_dismiss(self) -> None:
         """Close the help screen."""
@@ -185,8 +187,19 @@ class RytmuzApp(App):
         background: $panel;
     }
 
-    #search-input {
+    #search-bar {
         width: 100%;
+        height: 100%;
+    }
+
+    #search-input {
+        width: 1fr;
+    }
+
+    #help-button {
+        width: 5;
+        min-width: 5;
+        margin-left: 1;
     }
 
     #main-content {
@@ -307,7 +320,8 @@ class RytmuzApp(App):
         Binding("ctrl+s", "focus_search", _("focus_search"), show=True),
         Binding("ctrl+r", "show_recent", _("recent_songs"), show=True),
         Binding("space", "toggle_playback", _("play_pause"), show=True),
-        Binding("h", "show_help", "Help", show=True),
+        Binding("f1", "show_help", "Help", show=True),
+        Binding("h", "show_help", "Help", show=False),
         Binding("question_mark", "show_help", "Help", show=False),
         Binding("escape", "back_to_player", _("back_to_player"), show=True),
         Binding("ctrl+d", "toggle_debug", _("debug"), show=False),
@@ -317,7 +331,9 @@ class RytmuzApp(App):
     def compose(self) -> ComposeResult:
         """Create child widgets."""
         with Container(id="search-container"):
-            yield Input(placeholder=_("search_placeholder"), id="search-input")
+            with Horizontal(id="search-bar"):
+                yield Input(placeholder=_("search_placeholder"), id="search-input")
+                yield Button("?", id="help-button")
 
         with Container(id="main-content"):
             # Results grid view
@@ -580,7 +596,9 @@ class RytmuzApp(App):
         """Handle button clicks."""
         button_id = event.button.id
 
-        if button_id == "play-pause":
+        if button_id == "help-button":
+            self.action_show_help()
+        elif button_id == "play-pause":
             self.player.toggle_pause()
         elif button_id == "seek-back":
             self.player.seek(-10)
