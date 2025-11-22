@@ -2,18 +2,30 @@
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import List, Dict
+from platformdirs import user_cache_dir
+
+
+# XDG-compliant cache directory
+# Can be overridden with RYTMUZ_CACHE_DIR environment variable
+DEFAULT_CACHE_ROOT = os.environ.get("RYTMUZ_CACHE_DIR") or user_cache_dir("rytmuz")
 
 
 class PlayHistory:
     """Manage play history for recent songs."""
 
-    def __init__(self, history_file: str = ".history.json"):
+    def __init__(self, history_file: str | None = None):
         """Initialize play history.
 
         Args:
-            history_file: Path to the history JSON file
+            history_file: Path to the history JSON file (defaults to XDG cache dir)
         """
+        if history_file is None:
+            cache_dir = Path(DEFAULT_CACHE_ROOT)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            history_file = str(cache_dir / "history.json")
+
         self.history_file = history_file
         self.history: List[Dict] = []
         self.load()
