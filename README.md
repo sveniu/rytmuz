@@ -50,6 +50,7 @@ By default, rytmuz uses yt-dlp for searching, which provides basic keyword-based
 - **Music-focused results**: Filters to music content using YouTube's music category
 - **Better relevance**: Uses YouTube's content categorization, not just keywords
 - **Safer for kids**: More predictable, music-oriented results
+- **Free tier**: Up to 100 searches per day at no cost
 
 ### Setup Steps
 
@@ -77,8 +78,6 @@ By default, rytmuz uses yt-dlp for searching, which provides basic keyword-based
    ```
 
 5. **Run rytmuz** - It will automatically use the API key if available
-
-**Note**: The YouTube Data API has a free quota of 10,000 units/day. Each search uses ~100 units, so you can do ~100 searches per day for free.
 
 ## Usage
 
