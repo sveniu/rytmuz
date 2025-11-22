@@ -140,6 +140,12 @@ class HelpScreen(ModalScreen):
         """Close the help screen."""
         self.dismiss()
 
+    def on_click(self, event) -> None:
+        """Close help when clicking outside the dialog."""
+        # If click is directly on the HelpScreen (background), dismiss
+        if event.widget is self:
+            self.dismiss()
+
 
 class ResultCard(Static):
     """A card showing a search result with thumbnail and title."""
