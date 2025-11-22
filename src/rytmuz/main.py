@@ -15,6 +15,14 @@ from .thumbnail import download_thumbnail
 from .player import AudioPlayer
 from .history import PlayHistory
 
+# Configure logging at module import time (not in main())
+# This ensures logging works both when running via main() and
+# when Textual imports 'app' directly (textual run --dev rytmuz)
+logging.basicConfig(
+    level="DEBUG",
+    handlers=[TextualHandler()],
+)
+
 
 def check_external_dependencies() -> None:
     """Check if required external tools are installed.
@@ -471,12 +479,6 @@ class RytmuzApp(App):
 def main():
     # Check for required external dependencies before starting
     check_external_dependencies()
-
-    # Configure logging to route to Textual console
-    logging.basicConfig(
-        level="DEBUG",
-        handlers=[TextualHandler()],
-    )
 
     app = RytmuzApp()
     app.run()
