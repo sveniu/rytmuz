@@ -209,6 +209,7 @@ class RytmuzApp(App):
     BINDINGS = [
         Binding("ctrl+s", "focus_search", "Focus Search", show=True),
         Binding("ctrl+r", "show_recent", "Recent Songs", show=True),
+        Binding("space", "toggle_playback", "Play/Pause", show=True),
         Binding("escape", "back_to_player", "Back to Player", show=True),
         Binding("ctrl+d", "toggle_debug", "Debug", show=False),
         Binding("ctrl+c", "quit", "Quit", show=True),
@@ -246,6 +247,10 @@ class RytmuzApp(App):
             debug_label.add_class("visible")
         else:
             debug_label.remove_class("visible")
+
+    def action_toggle_playback(self) -> None:
+        """Toggle play/pause."""
+        self.player.toggle_pause()
 
     def action_focus_search(self) -> None:
         """Focus the search input and show results view."""
