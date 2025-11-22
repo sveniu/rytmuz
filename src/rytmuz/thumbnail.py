@@ -27,6 +27,10 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
     Returns:
         Renderable text representation of the image
     """
+    # Normalize protocol-relative URLs (//example.com -> https://example.com)
+    if url.startswith("//"):
+        url = "https:" + url
+
     # Check in-memory processed cache first
     cache_key = (url, max_width)
     if cache_key in _thumbnail_cache:
