@@ -119,6 +119,7 @@ class AudioPlayer:
                 "mpv",
                 "--no-video",
                 "--audio-display=no",
+                "--network-timeout=5",
                 f"--input-ipc-client=fd://{mpv_fd}",
                 audio_url
             ]
