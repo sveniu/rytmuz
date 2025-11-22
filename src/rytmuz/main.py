@@ -14,6 +14,7 @@ from .youtube_search import YouTubeSearcher
 from .thumbnail import download_thumbnail
 from .player import AudioPlayer
 from .history import PlayHistory
+from .i18n import _
 
 # Configure logging at module import time (not in main())
 # This ensures logging works both when running via main() and
@@ -59,7 +60,7 @@ class ResultCard(Static):
 
     def compose(self) -> ComposeResult:
         """Create card contents."""
-        yield Static("Loading...", classes="card-thumbnail")
+        yield Static(_("loading"), classes="card-thumbnail")
         yield Label(self.video_data["title"], classes="card-title")
 
     def on_click(self) -> None:
@@ -214,18 +215,18 @@ class RytmuzApp(App):
     """
 
     BINDINGS = [
-        Binding("ctrl+s", "focus_search", "Focus Search", show=True),
-        Binding("ctrl+r", "show_recent", "Recent Songs", show=True),
-        Binding("space", "toggle_playback", "Play/Pause", show=True),
-        Binding("escape", "back_to_player", "Back to Player", show=True),
-        Binding("ctrl+d", "toggle_debug", "Debug", show=False),
-        Binding("ctrl+c", "quit", "Quit", show=True),
+        Binding("ctrl+s", "focus_search", _("focus_search"), show=True),
+        Binding("ctrl+r", "show_recent", _("recent_songs"), show=True),
+        Binding("space", "toggle_playback", _("play_pause"), show=True),
+        Binding("escape", "back_to_player", _("back_to_player"), show=True),
+        Binding("ctrl+d", "toggle_debug", _("debug"), show=False),
+        Binding("ctrl+c", "quit", _("quit"), show=True),
     ]
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
         with Container(id="search-container"):
-            yield Input(placeholder="Search for music...", id="search-input")
+            yield Input(placeholder=_("search_placeholder"), id="search-input")
 
         with Container(id="main-content"):
             # Results grid view
@@ -239,13 +240,13 @@ class RytmuzApp(App):
             with Vertical(id="player-view", classes="hidden"):
                 with Container(id="player-content"):
                     yield Static("", id="player-thumbnail")
-                yield Label("Loading...", id="now-playing")
+                yield Label(_("loading"), id="now-playing")
                 with Horizontal(id="controls-container"):
-                    yield Button("⏮ -10s", id="seek-back", classes="control-button")
-                    yield Button("⏯ Play/Pause", id="play-pause", classes="control-button")
-                    yield Button("⏭ +10s", id="seek-forward", classes="control-button")
-                    yield Button("🔉 Vol-", id="vol-down", classes="control-button")
-                    yield Button("🔊 Vol+", id="vol-up", classes="control-button")
+                    yield Button(_("seek_back"), id="seek-back", classes="control-button")
+                    yield Button(_("play_pause"), id="play-pause", classes="control-button")
+                    yield Button(_("seek_forward"), id="seek-forward", classes="control-button")
+                    yield Button(_("vol_down"), id="vol-down", classes="control-button")
+                    yield Button(_("vol_up"), id="vol-up", classes="control-button")
 
         # Debug info at bottom
         yield Label("", id="debug-info")
@@ -299,7 +300,7 @@ class RytmuzApp(App):
         if not recent_songs:
             def add_no_songs():
                 results_grid = self.query_one("#results-grid", Vertical)
-                results_grid.mount(Label("No recent songs"))
+                results_grid.mount(Label(_("no_recent_songs")))
             self.call_from_thread(add_no_songs)
             return
 
@@ -392,7 +393,7 @@ class RytmuzApp(App):
             if not results:
                 def add_no_results():
                     results_grid = self.query_one("#results-grid", Vertical)
-                    results_grid.mount(Label("No results found"))
+                    results_grid.mount(Label(_("no_results")))
                 self.call_from_thread(add_no_results)
                 return
 
@@ -422,7 +423,7 @@ class RytmuzApp(App):
                 self.query_one("#loading-container").add_class("hidden")
                 self.query_one("#results-container").remove_class("hidden")
                 results_grid = self.query_one("#results-grid", Vertical)
-                results_grid.mount(Label(f"[red]Error: {e}[/red]"))
+                results_grid.mount(Label(f"[red]{_('error', error=str(e))}[/red]"))
             self.call_from_thread(show_error)
 
     async def on_result_card_selected(self, event: ResultCard.Selected) -> None:
@@ -454,7 +455,7 @@ class RytmuzApp(App):
             self.call_from_thread(self.log, msg)
 
         log_msg(f"Starting playback: '{title}' (video_id={video_id})")
-        self.call_from_thread(update_status, f"Loading: {title}")
+        self.call_from_thread(update_status, _("loading_title", title=title))
 
         try:
             # Download and display thumbnail at calculated size
@@ -470,7 +471,7 @@ class RytmuzApp(App):
 
             log_msg("Starting mpv playback")
             self.player.play(video_id)
-            self.call_from_thread(update_status, f"▶ Playing: {title}")
+            self.call_from_thread(update_status, _("playing_title", title=title))
             log_msg("Playback started successfully")
 
             # Add to history
@@ -478,7 +479,7 @@ class RytmuzApp(App):
             log_msg("Added to play history")
         except Exception as e:
             log_msg(f"Playback error: {type(e).__name__}: {e}")
-            self.call_from_thread(update_status, f"Error: {e}")
+            self.call_from_thread(update_status, _("error", error=str(e)))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button clicks."""
