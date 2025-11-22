@@ -5,7 +5,7 @@ import requests
 from PIL import Image
 from rich_pixels import Pixels
 
-from cache import ThumbnailCache
+from .cache import ThumbnailCache
 
 logger = logging.getLogger(__name__)
 

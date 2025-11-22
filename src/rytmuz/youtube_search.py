@@ -7,8 +7,8 @@ import subprocess
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from mock_data import MOCK_SEARCH_RESULTS
-from cache import SearchCache
+from .mock_data import MOCK_SEARCH_RESULTS
+from .cache import SearchCache
 
 logger = logging.getLogger(__name__)
 

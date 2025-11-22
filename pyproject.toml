@@ -13,5 +13,9 @@ dependencies = [
     "textual-dev>=1.8.0",
 ]
 
+[build-system]
+requires = ["uv-build"]
+build-backend = "uv_build"
+
 [project.scripts]
 rytmuz = "rytmuz:main"

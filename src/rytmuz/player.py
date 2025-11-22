@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional, Callable
 from platformdirs import user_runtime_dir, user_cache_dir
 
-from cache import AudioCache, AudioFileCache
+from .cache import AudioCache, AudioFileCache
 
 logger = logging.getLogger(__name__)
 

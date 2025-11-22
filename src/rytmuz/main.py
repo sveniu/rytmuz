@@ -10,10 +10,10 @@ from textual.message import Message
 from textual import work
 from textual.logging import TextualHandler
 
-from youtube_search import YouTubeSearcher
-from thumbnail import download_thumbnail
-from player import AudioPlayer
-from history import PlayHistory
+from .youtube_search import YouTubeSearcher
+from .thumbnail import download_thumbnail
+from .player import AudioPlayer
+from .history import PlayHistory
 
 
 def check_external_dependencies() -> None:
