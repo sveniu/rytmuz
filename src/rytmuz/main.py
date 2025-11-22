@@ -3,8 +3,8 @@ import sys
 import logging
 from shutil import which
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical, Horizontal
-from textual.widgets import Input, Button, Static, Label, ListItem, ListView
+from textual.containers import Container, Vertical, Horizontal, ScrollableContainer
+from textual.widgets import Input, Button, Static, Label
 from textual.binding import Binding
 from textual.message import Message
 from textual import work
@@ -18,8 +18,10 @@ from .history import PlayHistory
 # Configure logging at module import time (not in main())
 # This ensures logging works both when running via main() and
 # when Textual imports 'app' directly (textual run --dev rytmuz)
+# Use WARNING level for normal users, DEBUG only if RYTMUZ_DEBUG is set
+log_level = "DEBUG" if os.environ.get("RYTMUZ_DEBUG") else "WARNING"
 logging.basicConfig(
-    level="DEBUG",
+    level=log_level,
     handlers=[TextualHandler()],
 )
 
@@ -47,23 +49,29 @@ def check_external_dependencies() -> None:
         sys.exit(1)
 
 
-class SearchResultItem(ListItem):
-    """A custom list item for search results."""
+class ResultCard(Static):
+    """A card showing a search result with thumbnail and title."""
 
     def __init__(self, video_data: dict, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.video_data = video_data
+        self.add_class("result-card")
 
-    def on_enter(self) -> None:
-        """Trigger highlighting when mouse enters the item."""
-        # Find the parent ListView
-        if isinstance(self.parent, ListView):
-            # Find our index in the ListView and set it (triggers Highlighted event)
-            try:
-                index = list(self.parent.children).index(self)
-                self.parent.index = index
-            except (ValueError, AttributeError):
-                pass
+    def compose(self) -> ComposeResult:
+        """Create card contents."""
+        yield Static("Loading...", classes="card-thumbnail")
+        yield Label(self.video_data["title"], classes="card-title")
+
+    def on_click(self) -> None:
+        """Handle card click."""
+        self.post_message(ResultCard.Selected(self))
+
+    class Selected(Message):
+        """Posted when a result card is clicked."""
+
+        def __init__(self, card: "ResultCard"):
+            super().__init__()
+            self.card = card
 
 
 class RytmuzApp(App):
@@ -93,46 +101,52 @@ class RytmuzApp(App):
 
     #main-content {
         height: 1fr;
+        padding: 0;
+        margin: 0;
     }
 
-    #results-split {
-        height: 100%;
+    #results-container {
+        height: 1fr;
+        width: 100%;
     }
 
-    #results-list-container {
-        width: 60%;
-        height: 100%;
-        border-right: solid $primary;
-    }
-
-    #results-list {
-        height: 100%;
-    }
-
-    #preview-pane {
-        width: 40%;
-        height: 100%;
+    #results-grid {
+        height: auto;
+        layout: grid;
+        grid-size: 2;
+        grid-gutter: 1 1;
         padding: 1;
-        layout: vertical;
-        align: center middle;
     }
 
-    #preview-thumbnail {
+    .result-card {
+        height: auto;
+        min-height: 15;
+        border: solid $primary;
+        padding: 1;
+        background: $surface;
+    }
+
+    .result-card:hover {
+        background: $boost;
+        border: solid $accent;
+    }
+
+    .card-thumbnail {
         width: 100%;
         height: auto;
+        text-align: center;
     }
 
-    SearchResultItem {
-        height: 1;
-        padding: 0 1;
-    }
-
-    SearchResultItem:hover {
-        background: $boost;
+    .card-title {
+        width: 100%;
+        height: auto;
+        text-align: center;
+        padding: 1 0 0 0;
     }
 
     #player-view {
-        height: 100%;
+        height: 1fr;
+        width: 100%;
         layout: vertical;
     }
 
@@ -206,12 +220,8 @@ class RytmuzApp(App):
             yield Input(placeholder="Search for music...", id="search-input")
 
         with Container(id="main-content"):
-            # Results split view (left: list, right: preview)
-            with Horizontal(id="results-split"):
-                with Vertical(id="results-list-container"):
-                    yield ListView(id="results-list")
-                with Vertical(id="preview-pane"):
-                    yield Static("", id="preview-thumbnail")
+            # Results grid view
+            yield ScrollableContainer(Vertical(id="results-grid"), id="results-container")
 
             # Player view (shown during playback)
             with Vertical(id="player-view", classes="hidden"):
@@ -240,7 +250,7 @@ class RytmuzApp(App):
     def action_focus_search(self) -> None:
         """Focus the search input and show results view."""
         # Show results view, hide player view
-        self.query_one("#results-split").remove_class("hidden")
+        self.query_one("#results-container").remove_class("hidden")
         self.query_one("#player-view").add_class("hidden")
         self.query_one("#search-input", Input).focus()
 
@@ -248,30 +258,29 @@ class RytmuzApp(App):
         """Return to player view if music is playing."""
         # Only switch if player view has content (something is playing)
         if self.player.is_playing:
-            self.query_one("#results-split").add_class("hidden")
+            self.query_one("#results-container").add_class("hidden")
             self.query_one("#player-view").remove_class("hidden")
 
     def action_show_recent(self) -> None:
         """Show recent songs."""
         # Show results view, hide player view
-        self.query_one("#results-split").remove_class("hidden")
+        self.query_one("#results-container").remove_class("hidden")
         self.query_one("#player-view").add_class("hidden")
 
-        results_list = self.query_one("#results-list", ListView)
-        results_list.clear()
+        results_grid = self.query_one("#results-grid", Vertical)
+        results_grid.remove_children()
 
         recent_songs = self.history.get_recent(20)
 
         if not recent_songs:
-            results_list.append(ListItem(Label("No recent songs")))
+            results_grid.mount(Label("No recent songs"))
             return
 
         for song in recent_songs:
-            title = song["title"]
-            channel = song["channel"]
-            item_label = Label(f"{title} [dim]· {channel}[/dim]")
-            item = SearchResultItem(song, item_label)
-            results_list.append(item)
+            card = ResultCard(song)
+            results_grid.mount(card)
+            # Load thumbnail in background
+            self.load_card_thumbnail(card, song["thumbnail_url"])
 
     def on_mount(self) -> None:
         """Called when app starts."""
@@ -315,109 +324,82 @@ class RytmuzApp(App):
             if query:
                 self.log(f"User submitted search query: '{query}'")
                 # Ensure results view is visible
-                self.query_one("#results-split").remove_class("hidden")
+                self.query_one("#results-container").remove_class("hidden")
                 self.query_one("#player-view").add_class("hidden")
                 # Clear old results immediately
-                results_list = self.query_one("#results-list", ListView)
-                results_list.clear()
-                # Clear preview pane
-                self.query_one("#preview-thumbnail", Static).update("")
-                self.selected_video_data = None
+                results_grid = self.query_one("#results-grid", Vertical)
+                results_grid.remove_children()
                 self.perform_search(query)
 
     @work(thread=True)
     def perform_search(self, query: str) -> None:
         """Perform a YouTube search and display results."""
         try:
-            results = self.searcher.search(query, max_results=15)
+            results = self.searcher.search(query, max_results=20)
 
-            # Clear results list from main thread
+            # Clear results grid from main thread
             def clear_results():
-                results_list = self.query_one("#results-list", ListView)
-                results_list.clear()
+                results_grid = self.query_one("#results-grid", Vertical)
+                results_grid.remove_children()
 
             self.call_from_thread(clear_results)
 
             if not results:
                 def add_no_results():
-                    results_list = self.query_one("#results-list", ListView)
-                    results_list.append(ListItem(Label("No results found")))
+                    results_grid = self.query_one("#results-grid", Vertical)
+                    results_grid.mount(Label("No results found"))
                 self.call_from_thread(add_no_results)
                 return
 
             for result in results:
-                title = result["title"]
-                channel = result["channel"]
-
                 def add_result(r=result):
-                    results_list = self.query_one("#results-list", ListView)
-                    item_label = Label(f"{r['title']} [dim]· {r['channel']}[/dim]")
-                    item = SearchResultItem(r, item_label)
-                    results_list.append(item)
+                    results_grid = self.query_one("#results-grid", Vertical)
+                    card = ResultCard(r)
+                    results_grid.mount(card)
+                    # Load thumbnail in background
+                    self.load_card_thumbnail(card, r["thumbnail_url"])
 
                 self.call_from_thread(add_result)
 
         except Exception as e:
             def add_error():
-                results_list = self.query_one("#results-list", ListView)
-                results_list.append(ListItem(Label(f"[red]Error: {e}[/red]")))
+                results_grid = self.query_one("#results-grid", Vertical)
+                results_grid.mount(Label(f"[red]Error: {e}[/red]"))
             self.call_from_thread(add_error)
 
-    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
-        """Show thumbnail preview when hovering over a result."""
-        if isinstance(event.item, SearchResultItem):
-            # Store the selected video data
-            self.selected_video_data = event.item.video_data
-
-            # Get preview pane dimensions from main thread
-            preview_pane = self.query_one("#preview-pane", Vertical)
-            pane_width = preview_pane.size.width
-
-            # Get terminal width for comparison
-            terminal_width = self.size.width
-
-            # Use almost full pane width, leaving just 2 chars for minimal padding
-            if pane_width > 0:
-                max_width = max(15, pane_width - 2)
-            else:
-                max_width = 30  # Fallback
-
-            # Display debug info if enabled
-            if self.debug_mode:
-                debug_label = self.query_one("#debug-info", Label)
-                debug_label.update(
-                    f"Terminal: {terminal_width}ch | Preview pane: {pane_width}ch | "
-                    f"Thumbnail: {max_width}ch | Pane%: {pane_width/terminal_width*100:.1f}%"
-                )
-
-            self.show_preview_thumbnail(event.item.video_data, max_width)
-
     @work(thread=True)
-    def show_preview_thumbnail(self, video_data: dict, max_width: int) -> None:
-        """Load and display thumbnail in preview pane."""
-        thumbnail_url = video_data["thumbnail_url"]
+    def load_card_thumbnail(self, card: ResultCard, thumbnail_url: str) -> None:
+        """Load and display thumbnail in a result card."""
+        # Calculate thumbnail width based on terminal
+        terminal_width = self.size.width
+        # Grid is 2 columns, so each card gets ~half the width
+        max_width = max(20, int(terminal_width / 2) - 4)
+
         thumbnail = download_thumbnail(thumbnail_url, max_width=max_width)
 
-        def update_preview():
-            preview_thumbnail = self.query_one("#preview-thumbnail", Static)
-            preview_thumbnail.update(thumbnail)
+        def update_card():
+            # Find the thumbnail static within the card
+            try:
+                thumb_static = card.query_one(".card-thumbnail", Static)
+                thumb_static.update(thumbnail)
+            except Exception as e:
+                self.log(f"Error updating thumbnail: {e}")
 
-        self.call_from_thread(update_preview)
+        self.call_from_thread(update_card)
 
-    async def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Handle when a search result is selected (Enter key or click)."""
-        if isinstance(event.item, SearchResultItem):
-            video_data = event.item.video_data
-            # Hide results, show player view
-            self.query_one("#results-split").add_class("hidden")
-            self.query_one("#player-view").remove_class("hidden")
+    async def on_result_card_selected(self, event: ResultCard.Selected) -> None:
+        """Handle when a result card is clicked."""
+        video_data = event.card.video_data
+        # Hide results, show player view
+        self.query_one("#results-container").add_class("hidden")
+        self.query_one("#player-view").remove_class("hidden")
 
-            # Simple approach: size based on width, let layout constrain height
-            terminal_width = self.size.width
-            # Use 60% of terminal width
-            thumb_width = int(terminal_width * 0.6)
+        # Simple approach: size based on width, let layout constrain height
+        terminal_width = self.size.width
+        # Use 60% of terminal width
+        thumb_width = int(terminal_width * 0.6)
 
-            self.play_video(video_data, thumb_width)
+        self.play_video(video_data, thumb_width)
 
     @work(thread=True)
     def play_video(self, video_data: dict, thumb_width: int) -> None:
