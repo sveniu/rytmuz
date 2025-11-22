@@ -6,6 +6,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional, Callable
+from platformdirs import user_runtime_dir, user_cache_dir
 
 from cache import AudioCache, AudioFileCache
 
@@ -20,10 +21,17 @@ class AudioPlayer:
         self.mpv_process: Optional[subprocess.Popen] = None
         self.current_video_id: Optional[str] = None
         self.is_playing: bool = False
-        # Use .cache directory for socket to avoid snap confinement issues with /tmp
-        cache_dir = Path(".cache")
-        cache_dir.mkdir(exist_ok=True)
-        self._ipc_socket = str(cache_dir / "mpv_socket")
+
+        # Use XDG_RUNTIME_DIR for socket (preferred for runtime files)
+        # Falls back to cache dir if runtime dir unavailable
+        try:
+            runtime_dir = Path(user_runtime_dir("rytmuz", ensure_exists=True))
+            self._ipc_socket = str(runtime_dir / "mpv_socket")
+        except Exception:
+            # Fallback to cache dir if runtime dir fails
+            cache_dir = Path(user_cache_dir("rytmuz", ensure_exists=True))
+            self._ipc_socket = str(cache_dir / "mpv_socket")
+
         self.cache = AudioCache()
         self.file_cache = AudioFileCache()
 
@@ -220,8 +228,8 @@ class AudioPlayer:
                 logger.debug(f"Audio already cached: {video_id}")
                 return
 
-            # Create temp file for download
-            temp_file = Path(f".cache/audio/{video_id}.tmp.m4a")
+            # Create temp file for download in the same directory as cache
+            temp_file = self.file_cache.cache_dir / f"{video_id}.tmp.m4a"
             temp_file.parent.mkdir(parents=True, exist_ok=True)
 
             youtube_url = f"https://www.youtube.com/watch?v={video_id}"
@@ -256,12 +264,12 @@ class AudioPlayer:
         except subprocess.TimeoutExpired:
             logger.error(f"Download timeout for {video_id}")
             # Clean up temp file
-            temp_file = Path(f".cache/audio/{video_id}.tmp.m4a")
+            temp_file = self.file_cache.cache_dir / f"{video_id}.tmp.m4a"
             if temp_file.exists():
                 temp_file.unlink()
         except Exception as e:
             logger.error(f"Download error for {video_id}: {type(e).__name__}: {e}")
             # Clean up temp file
-            temp_file = Path(f".cache/audio/{video_id}.tmp.m4a")
+            temp_file = self.file_cache.cache_dir / f"{video_id}.tmp.m4a"
             if temp_file.exists():
                 temp_file.unlink()

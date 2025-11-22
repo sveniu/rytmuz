@@ -6,19 +6,26 @@ import hashlib
 import logging
 from pathlib import Path
 from typing import Optional
+from platformdirs import user_cache_dir
 
 logger = logging.getLogger(__name__)
+
+# XDG-compliant cache directory
+# Can be overridden with RYTMUZ_CACHE_DIR environment variable
+DEFAULT_CACHE_ROOT = os.environ.get("RYTMUZ_CACHE_DIR") or user_cache_dir("rytmuz")
 
 
 class AudioCache:
     """Cache audio URLs to speed up playback."""
 
-    def __init__(self, cache_dir: str = ".cache"):
+    def __init__(self, cache_dir: str | None = None):
         """Initialize audio cache.
 
         Args:
-            cache_dir: Directory to store cache data
+            cache_dir: Directory to store cache data (defaults to XDG cache dir)
         """
+        if cache_dir is None:
+            cache_dir = DEFAULT_CACHE_ROOT
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
         self.cache_file = self.cache_dir / "audio_urls.json"
@@ -102,13 +109,15 @@ class AudioCache:
 class SearchCache:
     """Cache YouTube search results to reduce API quota usage."""
 
-    def __init__(self, cache_dir: str = ".cache", ttl: int = 86400):
+    def __init__(self, cache_dir: str | None = None, ttl: int = 86400):
         """Initialize search cache.
 
         Args:
-            cache_dir: Directory to store cache data
+            cache_dir: Directory to store cache data (defaults to XDG cache dir)
             ttl: Time to live in seconds (default: 24 hours)
         """
+        if cache_dir is None:
+            cache_dir = DEFAULT_CACHE_ROOT
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
         self.cache_file = self.cache_dir / "search_results.json"
@@ -199,13 +208,15 @@ class SearchCache:
 class ThumbnailCache:
     """Cache raw thumbnail images to avoid repeated downloads."""
 
-    def __init__(self, cache_dir: str = ".cache/thumbnails", ttl: int = 604800):
+    def __init__(self, cache_dir: str | None = None, ttl: int = 604800):
         """Initialize thumbnail cache.
 
         Args:
-            cache_dir: Directory to store cached thumbnails
+            cache_dir: Directory to store cached thumbnails (defaults to XDG cache dir/thumbnails)
             ttl: Time to live in seconds (default: 7 days)
         """
+        if cache_dir is None:
+            cache_dir = str(Path(DEFAULT_CACHE_ROOT) / "thumbnails")
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.metadata_file = self.cache_dir / "metadata.json"
@@ -341,17 +352,19 @@ class AudioFileCache:
 
     def __init__(
         self,
-        cache_dir: str = ".cache/audio",
+        cache_dir: str | None = None,
         max_size_mb: int = 500,
         max_files: int = 100
     ):
         """Initialize audio file cache.
 
         Args:
-            cache_dir: Directory to store cached audio files
+            cache_dir: Directory to store cached audio files (defaults to XDG cache dir/audio)
             max_size_mb: Maximum cache size in megabytes
             max_files: Maximum number of files to cache
         """
+        if cache_dir is None:
+            cache_dir = str(Path(DEFAULT_CACHE_ROOT) / "audio")
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.metadata_file = self.cache_dir / "metadata.json"
