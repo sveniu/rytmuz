@@ -82,10 +82,18 @@ class YouTubeSearcher:
                     data = json.loads(line)
 
                     # Filter out non-video results (channels, playlists, etc.)
-                    # YouTube video IDs are always 11 characters long
                     video_id = data.get("id", "")
-                    if len(video_id) != 11:
-                        logger.debug(f"Skipping non-video result with id: {video_id[:30]}... (len={len(video_id)})")
+
+                    # Skip channels (start with UC, 24 chars)
+                    if video_id.startswith("UC") and len(video_id) == 24:
+                        logger.debug(f"Skipping channel result: {video_id}")
+                        continue
+
+                    # Skip playlists (start with known playlist prefixes)
+                    # PL=playlist, UU=uploads, FL=favorites, LL=likes, WL=watch later, RD=mix, OLAK=album
+                    playlist_prefixes = ("PL", "UU", "FL", "LL", "WL", "RD", "OLAK")
+                    if video_id.startswith(playlist_prefixes):
+                        logger.debug(f"Skipping playlist result: {video_id}")
                         continue
 
                     # Get thumbnail URL - yt-dlp returns an array of thumbnails
