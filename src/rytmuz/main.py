@@ -7,6 +7,7 @@ from textual.containers import Container, Vertical, Horizontal, ScrollableContai
 from textual.widgets import Input, Button, Static, Label, LoadingIndicator
 from textual.binding import Binding
 from textual.message import Message
+from textual.screen import ModalScreen
 from textual import work
 from textual.logging import TextualHandler
 
@@ -48,6 +49,94 @@ def check_external_dependencies() -> None:
         print("  Windows: scoop install yt-dlp mpv", file=sys.stderr)
         print("\nOr install yt-dlp via pipx: pipx install yt-dlp", file=sys.stderr)
         sys.exit(1)
+
+
+class HelpScreen(ModalScreen):
+    """Modal screen showing keyboard shortcuts and help information."""
+
+    BINDINGS = [
+        Binding("escape", "dismiss", "Close", show=False),
+        Binding("q", "dismiss", "Close", show=False),
+        Binding("h", "dismiss", "Close", show=False),
+        Binding("question_mark", "dismiss", "Close", show=False),
+    ]
+
+    CSS = """
+    HelpScreen {
+        align: center middle;
+    }
+
+    #help-dialog {
+        width: 80;
+        height: auto;
+        max-height: 90%;
+        border: thick $primary;
+        background: $surface;
+        padding: 1 2;
+    }
+
+    #help-title {
+        text-align: center;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    #help-content {
+        height: auto;
+        padding: 0 1;
+    }
+
+    .help-section {
+        margin-top: 1;
+    }
+
+    .help-section-title {
+        text-style: bold;
+        color: $accent;
+    }
+
+    .help-item {
+        margin-left: 2;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        """Create help dialog contents."""
+        with Container(id="help-dialog"):
+            yield Label("RYTMUZ - Help", id="help-title")
+            with ScrollableContainer(id="help-content"):
+                # Keyboard shortcuts
+                yield Static("Keyboard Shortcuts", classes="help-section-title")
+                yield Static("  Ctrl+S    Focus search input", classes="help-item")
+                yield Static("  Ctrl+R    Show recent songs", classes="help-item")
+                yield Static("  Space     Play/Pause", classes="help-item")
+                yield Static("  Escape    Return to player", classes="help-item")
+                yield Static("  h or ?    Show this help", classes="help-item")
+                yield Static("  Ctrl+C    Quit", classes="help-item")
+
+                # Player controls
+                yield Static("", classes="help-section")
+                yield Static("Player Controls", classes="help-section-title")
+                yield Static("  ⏮  -10s     Seek backward 10 seconds", classes="help-item")
+                yield Static("  ⏯  Play/Pause   Toggle playback", classes="help-item")
+                yield Static("  ⏭  +10s     Seek forward 10 seconds", classes="help-item")
+                yield Static("  🔉 Vol-     Decrease volume", classes="help-item")
+                yield Static("  🔊 Vol+     Increase volume", classes="help-item")
+
+                # Usage tips
+                yield Static("", classes="help-section")
+                yield Static("Usage Tips", classes="help-section-title")
+                yield Static("  • Type in search box and press Enter to search", classes="help-item")
+                yield Static("  • Click on a song card to play it", classes="help-item")
+                yield Static("  • Recent songs are cached for instant replay", classes="help-item")
+                yield Static("  • Press Escape to return to player view", classes="help-item")
+
+                yield Static("", classes="help-section")
+                yield Static("Press Escape, h, ?, or q to close this help", classes="help-item")
+
+    def action_dismiss(self) -> None:
+        """Close the help screen."""
+        self.dismiss()
 
 
 class ResultCard(Static):
@@ -218,6 +307,8 @@ class RytmuzApp(App):
         Binding("ctrl+s", "focus_search", _("focus_search"), show=True),
         Binding("ctrl+r", "show_recent", _("recent_songs"), show=True),
         Binding("space", "toggle_playback", _("play_pause"), show=True),
+        Binding("h", "show_help", "Help", show=True),
+        Binding("question_mark", "show_help", "Help", show=False),
         Binding("escape", "back_to_player", _("back_to_player"), show=True),
         Binding("ctrl+d", "toggle_debug", _("debug"), show=False),
         Binding("ctrl+c", "quit", _("quit"), show=True),
@@ -263,6 +354,10 @@ class RytmuzApp(App):
     def action_toggle_playback(self) -> None:
         """Toggle play/pause."""
         self.player.toggle_pause()
+
+    def action_show_help(self) -> None:
+        """Show help modal."""
+        self.push_screen(HelpScreen())
 
     def action_focus_search(self) -> None:
         """Focus the search input and show results view."""
