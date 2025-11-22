@@ -14,10 +14,9 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
 
 ## Requirements
 
-- Python 3.13+
+- Python 3.10+
 - `yt-dlp` command-line tool
 - `mpv` media player
-- YouTube Data API v3 key
 
 ## Setup
 
@@ -30,15 +29,17 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
    brew install yt-dlp mpv
    ```
 
-2. Set up YouTube API key:
-   - Get an API key from Google Cloud Console
-   - Either:
-     - Create an `api_key` file in the project directory, or
-     - Set the `YOUTUBE_API_KEY` environment variable
-
-3. Run the app:
+2. Run the app:
    ```bash
-   uv run main.py
+   # Using uvx (recommended - no installation needed)
+   uvx rytmuz
+
+   # Or using pipx
+   pipx run rytmuz
+
+   # Or install with pipx for persistent use
+   pipx install rytmuz
+   rytmuz
    ```
 
 ## Usage
@@ -52,15 +53,6 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
   - Seek forward: ⏭ (+10s)
   - Volume: 🔉/🔊 buttons
 - **Quit**: Press Ctrl+C
-
-## Architecture
-
-- `main.py`: Textual TUI application
-- `youtube_search.py`: YouTube Data API integration
-- `player.py`: Audio playback with yt-dlp + mpv
-- `cache.py`: URL caching for fast replay
-- `history.py`: Play history tracking
-- `thumbnail.py`: Image display with rich-pixels
 
 ## Design Decisions
 
