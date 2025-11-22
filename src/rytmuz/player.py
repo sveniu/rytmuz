@@ -6,7 +6,6 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional, Callable
-from platformdirs import user_runtime_dir, user_cache_dir
 
 from .cache import AudioCache, AudioFileCache
 
@@ -22,18 +21,31 @@ class AudioPlayer:
         self.current_video_id: Optional[str] = None
         self.is_playing: bool = False
 
-        # Use XDG_RUNTIME_DIR for socket (preferred for runtime files)
-        # Falls back to cache dir if runtime dir unavailable
-        try:
-            runtime_dir = Path(user_runtime_dir("rytmuz", ensure_exists=True))
-            self._ipc_socket = str(runtime_dir / "mpv_socket")
-        except Exception:
-            # Fallback to cache dir if runtime dir fails
-            cache_dir = Path(user_cache_dir("rytmuz", ensure_exists=True))
-            self._ipc_socket = str(cache_dir / "mpv_socket")
+        # Create socketpair for IPC with mpv
+        # This bypasses snap filesystem restrictions since no path is needed
+        self._ipc_socket: Optional[socket.socket] = None
+        self._mpv_socket: Optional[socket.socket] = None
+        self._create_socketpair()
 
         self.cache = AudioCache()
         self.file_cache = AudioFileCache()
+
+    def _create_socketpair(self):
+        """Create a new socketpair for IPC communication."""
+        # Close existing sockets if any
+        if self._ipc_socket:
+            try:
+                self._ipc_socket.close()
+            except Exception:
+                pass
+        if self._mpv_socket:
+            try:
+                self._mpv_socket.close()
+            except Exception:
+                pass
+
+        # Create new socketpair
+        self._ipc_socket, self._mpv_socket = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
 
     def get_audio_url(self, video_id: str) -> str:
         """Get the direct audio URL using yt-dlp with caching.
@@ -96,20 +108,28 @@ class AudioPlayer:
                 # Start background download
                 self._download_audio_background(video_id)
 
-            # Start mpv with IPC for control
+            # Create new socketpair for this mpv instance
+            self._create_socketpair()
+
+            # Start mpv with IPC for control using socketpair
             # Capture stderr to diagnose intermittent audio issues
             self.mpv_process = subprocess.Popen(
                 [
                     "mpv",
                     "--no-video",
                     "--audio-display=no",
-                    f"--input-ipc-server={self._ipc_socket}",
+                    f"--input-ipc-client=fd://{self._mpv_socket.fileno()}",
                     audio_url
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                pass_fds=(self._mpv_socket.fileno(),)
             )
+
+            # Close mpv's socket end in our process (mpv inherited it)
+            self._mpv_socket.close()
+            self._mpv_socket = None
 
             self.current_video_id = video_id
             self.is_playing = True
@@ -147,6 +167,14 @@ class AudioPlayer:
                 self.mpv_process.kill()
             self.mpv_process = None
 
+        # Close IPC socket
+        if self._ipc_socket:
+            try:
+                self._ipc_socket.close()
+            except Exception:
+                pass
+            self._ipc_socket = None
+
         self.is_playing = False
         self.current_video_id = None
 
@@ -174,29 +202,33 @@ class AudioPlayer:
             self._send_command(["add", "volume", amount])
 
     def _send_command(self, command: list) -> None:
-        """Send command to mpv via IPC using native Python sockets.
+        """Send command to mpv via IPC using socketpair.
 
         Args:
             command: MPV command as a list (e.g., ["seek", 10] or ["cycle", "pause"])
         """
+        if not self._ipc_socket or not self.mpv_process:
+            logger.warning(f"Cannot send command {command}: no active mpv process")
+            return
+
         try:
-            # Create Unix domain socket
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.settimeout(1.0)
-
-            # Connect to mpv IPC socket
-            sock.connect(self._ipc_socket)
-
             # Build and send JSON command
             cmd_json = json.dumps({"command": command}) + "\n"
-            sock.sendall(cmd_json.encode('utf-8'))
+            self._ipc_socket.sendall(cmd_json.encode('utf-8'))
 
-            # Read response (optional, but helps catch errors)
-            response = sock.recv(4096).decode('utf-8')
-            logger.debug(f"Sent command {command}, response: {response.strip()}")
+            # Set non-blocking to read available responses without hanging
+            self._ipc_socket.setblocking(False)
+            try:
+                response = self._ipc_socket.recv(4096).decode('utf-8')
+                logger.debug(f"Sent command {command}, response: {response.strip()}")
+            except BlockingIOError:
+                # No immediate response available, that's okay
+                logger.debug(f"Sent command {command}, no immediate response")
+            finally:
+                # Restore blocking mode
+                self._ipc_socket.setblocking(True)
 
-            sock.close()
-        except (socket.error, ConnectionRefusedError, FileNotFoundError) as e:
+        except (socket.error, BrokenPipeError) as e:
             logger.warning(f"Failed to send mpv command {command}: {e}")
         except Exception as e:
             logger.error(f"Unexpected error sending mpv command {command}: {e}")
