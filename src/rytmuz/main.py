@@ -4,7 +4,7 @@ import logging
 from shutil import which
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Input, Button, Static, Label
+from textual.widgets import Input, Button, Static, Label, LoadingIndicator
 from textual.binding import Binding
 from textual.message import Message
 from textual import work
@@ -108,6 +108,13 @@ class RytmuzApp(App):
     #results-container {
         height: 1fr;
         width: 100%;
+    }
+
+    #loading-container {
+        height: 1fr;
+        width: 100%;
+        align: center middle;
+        content-align: center middle;
     }
 
     #results-grid {
@@ -223,6 +230,10 @@ class RytmuzApp(App):
         with Container(id="main-content"):
             # Results grid view
             yield ScrollableContainer(Vertical(id="results-grid"), id="results-container")
+
+            # Loading indicator (shown during search)
+            with Container(id="loading-container", classes="hidden"):
+                yield LoadingIndicator(id="loading-indicator")
 
             # Player view (shown during playback)
             with Vertical(id="player-view", classes="hidden"):
@@ -354,8 +365,9 @@ class RytmuzApp(App):
             query = event.value.strip()
             if query:
                 self.log(f"User submitted search query: '{query}'")
-                # Ensure results view is visible
-                self.query_one("#results-container").remove_class("hidden")
+                # Show loading indicator
+                self.query_one("#loading-container").remove_class("hidden")
+                self.query_one("#results-container").add_class("hidden")
                 self.query_one("#player-view").add_class("hidden")
                 # Clear old results immediately
                 results_grid = self.query_one("#results-grid", Vertical)
@@ -368,12 +380,14 @@ class RytmuzApp(App):
         try:
             results = self.searcher.search(query, max_results=20)
 
-            # Clear results grid from main thread
-            def clear_results():
+            # Hide loading indicator, show results
+            def show_results():
+                self.query_one("#loading-container").add_class("hidden")
+                self.query_one("#results-container").remove_class("hidden")
                 results_grid = self.query_one("#results-grid", Vertical)
                 results_grid.remove_children()
 
-            self.call_from_thread(clear_results)
+            self.call_from_thread(show_results)
 
             if not results:
                 def add_no_results():
@@ -404,10 +418,12 @@ class RytmuzApp(App):
                 self.call_from_thread(add_result)
 
         except Exception as e:
-            def add_error():
+            def show_error():
+                self.query_one("#loading-container").add_class("hidden")
+                self.query_one("#results-container").remove_class("hidden")
                 results_grid = self.query_one("#results-grid", Vertical)
                 results_grid.mount(Label(f"[red]Error: {e}[/red]"))
-            self.call_from_thread(add_error)
+            self.call_from_thread(show_error)
 
     async def on_result_card_selected(self, event: ResultCard.Selected) -> None:
         """Handle when a result card is clicked."""
