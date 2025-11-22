@@ -100,7 +100,8 @@ class AudioPlayer:
             if cached_file:
                 # Use cached file - instant playback!
                 audio_url = str(cached_file)
-                logger.info(f"Playing from cache: {video_id}")
+                file_exists = cached_file.exists() if hasattr(cached_file, 'exists') else Path(audio_url).exists()
+                logger.info(f"Playing from cache: {video_id}, path={audio_url}, exists={file_exists}")
             else:
                 # Stream from URL and download in background
                 audio_url = self.get_audio_url(video_id)
