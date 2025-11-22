@@ -81,6 +81,13 @@ class YouTubeSearcher:
                 try:
                     data = json.loads(line)
 
+                    # Filter out non-video results (channels, playlists, etc.)
+                    # YouTube video IDs are always 11 characters long
+                    video_id = data.get("id", "")
+                    if len(video_id) != 11:
+                        logger.debug(f"Skipping non-video result with id: {video_id[:30]}... (len={len(video_id)})")
+                        continue
+
                     # Get thumbnail URL - yt-dlp returns an array of thumbnails
                     thumbnail_url = ""
                     if "thumbnails" in data and data["thumbnails"]:
@@ -91,7 +98,7 @@ class YouTubeSearcher:
                     description = data.get("description") or ""
 
                     results.append({
-                        "video_id": data["id"],
+                        "video_id": video_id,
                         "title": html.unescape(data.get("title", "Unknown")),
                         "channel": html.unescape(data.get("uploader", "Unknown")),
                         "thumbnail_url": thumbnail_url,
