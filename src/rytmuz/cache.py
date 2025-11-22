@@ -18,11 +18,12 @@ DEFAULT_CACHE_ROOT = os.environ.get("RYTMUZ_CACHE_DIR") or user_cache_dir("rytmu
 class AudioCache:
     """Cache audio URLs to speed up playback."""
 
-    def __init__(self, cache_dir: str | None = None):
+    def __init__(self, cache_dir: str | None = None, max_entries: int = 1000):
         """Initialize audio cache.
 
         Args:
             cache_dir: Directory to store cache data (defaults to XDG cache dir)
+            max_entries: Maximum number of entries to cache (default: 1000)
         """
         if cache_dir is None:
             cache_dir = DEFAULT_CACHE_ROOT
@@ -31,6 +32,7 @@ class AudioCache:
         self.cache_file = self.cache_dir / "audio_urls.json"
         self.cache: dict = {}
         self.ttl = 3600 * 6  # 6 hours TTL for URLs
+        self.max_entries = max_entries
         self.load()
 
     def load(self) -> None:
@@ -89,6 +91,7 @@ class AudioCache:
         }
         self.save()
         logger.debug(f"AudioCache set: {video_id}")
+        self._enforce_limits()
 
     def clear_expired(self) -> None:
         """Remove all expired entries from cache."""
@@ -105,16 +108,37 @@ class AudioCache:
             self.save()
             logger.info(f"AudioCache cleared {len(expired)} expired entries")
 
+    def _enforce_limits(self) -> None:
+        """Remove oldest entries if cache exceeds max_entries."""
+        if len(self.cache) <= self.max_entries:
+            return
+
+        # Sort by timestamp (LRU)
+        sorted_items = sorted(
+            self.cache.items(),
+            key=lambda x: x[1].get("timestamp", 0)
+        )
+
+        # Remove oldest entries until under limit
+        num_to_remove = len(self.cache) - self.max_entries
+        for video_id, _ in sorted_items[:num_to_remove]:
+            del self.cache[video_id]
+
+        if num_to_remove > 0:
+            logger.info(f"AudioCache evicted {num_to_remove} entries - LRU cleanup")
+            self.save()
+
 
 class SearchCache:
     """Cache YouTube search results to reduce API quota usage."""
 
-    def __init__(self, cache_dir: str | None = None, ttl: int = 86400):
+    def __init__(self, cache_dir: str | None = None, ttl: int = 604800, max_entries: int = 100):
         """Initialize search cache.
 
         Args:
             cache_dir: Directory to store cache data (defaults to XDG cache dir)
-            ttl: Time to live in seconds (default: 24 hours)
+            ttl: Time to live in seconds (default: 7 days)
+            max_entries: Maximum number of search queries to cache (default: 100)
         """
         if cache_dir is None:
             cache_dir = DEFAULT_CACHE_ROOT
@@ -123,6 +147,7 @@ class SearchCache:
         self.cache_file = self.cache_dir / "search_results.json"
         self.cache: dict = {}
         self.ttl = ttl
+        self.max_entries = max_entries
         self.load()
 
     def load(self) -> None:
@@ -188,6 +213,7 @@ class SearchCache:
         }
         self.save()
         logger.debug(f"SearchCache set: '{key}' ({len(results)} results)")
+        self._enforce_limits()
 
     def clear_expired(self) -> None:
         """Remove all expired entries from cache."""
@@ -204,16 +230,44 @@ class SearchCache:
             self.save()
             logger.info(f"SearchCache cleared {len(expired)} expired entries")
 
+    def _enforce_limits(self) -> None:
+        """Remove oldest entries if cache exceeds max_entries."""
+        if len(self.cache) <= self.max_entries:
+            return
+
+        # Sort by timestamp (LRU)
+        sorted_items = sorted(
+            self.cache.items(),
+            key=lambda x: x[1].get("timestamp", 0)
+        )
+
+        # Remove oldest entries until under limit
+        num_to_remove = len(self.cache) - self.max_entries
+        for query, _ in sorted_items[:num_to_remove]:
+            del self.cache[query]
+
+        if num_to_remove > 0:
+            logger.info(f"SearchCache evicted {num_to_remove} queries - LRU cleanup")
+            self.save()
+
 
 class ThumbnailCache:
     """Cache raw thumbnail images to avoid repeated downloads."""
 
-    def __init__(self, cache_dir: str | None = None, ttl: int = 604800):
+    def __init__(
+        self,
+        cache_dir: str | None = None,
+        ttl: int = 604800,
+        max_files: int = 200,
+        max_size_mb: int = 50
+    ):
         """Initialize thumbnail cache.
 
         Args:
             cache_dir: Directory to store cached thumbnails (defaults to XDG cache dir/thumbnails)
             ttl: Time to live in seconds (default: 7 days)
+            max_files: Maximum number of files to cache (default: 200)
+            max_size_mb: Maximum cache size in megabytes (default: 50)
         """
         if cache_dir is None:
             cache_dir = str(Path(DEFAULT_CACHE_ROOT) / "thumbnails")
@@ -222,6 +276,8 @@ class ThumbnailCache:
         self.metadata_file = self.cache_dir / "metadata.json"
         self.metadata: dict = {}
         self.ttl = ttl
+        self.max_files = max_files
+        self.max_size_bytes = max_size_mb * 1024 * 1024
         self.load_metadata()
 
     def load_metadata(self) -> None:
@@ -305,10 +361,14 @@ class ThumbnailCache:
             # Update metadata
             self.metadata[cache_key] = {
                 "url": url,
-                "timestamp": time.time()
+                "timestamp": time.time(),
+                "size": len(image_data)
             }
             self.save_metadata()
             logger.debug(f"ThumbnailCache set: {cache_key} ({len(image_data)} bytes)")
+
+            # Enforce cache limits
+            self._enforce_limits()
         except Exception:
             pass
 
@@ -345,6 +405,51 @@ class ThumbnailCache:
 
         if expired:
             logger.info(f"ThumbnailCache cleared {len(expired)} expired entries")
+
+    def _enforce_limits(self) -> None:
+        """Remove oldest files if cache exceeds limits."""
+        # Calculate total size
+        total_size = sum(entry.get("size", 0) for entry in self.metadata.values())
+        num_files = len(self.metadata)
+
+        # Check if we need to evict
+        if total_size <= self.max_size_bytes and num_files <= self.max_files:
+            return
+
+        # Sort by timestamp (LRU)
+        sorted_items = sorted(
+            self.metadata.items(),
+            key=lambda x: x[1].get("timestamp", 0)
+        )
+
+        evicted_count = 0
+        evicted_size = 0
+
+        # Remove oldest until under limits
+        for cache_key, entry in sorted_items:
+            if total_size <= self.max_size_bytes and num_files <= self.max_files:
+                break
+
+            # Remove file
+            cache_file = self.cache_dir / cache_key
+            if cache_file.exists():
+                try:
+                    cache_file.unlink()
+                    file_size = entry.get("size", 0)
+                    total_size -= file_size
+                    evicted_size += file_size
+                    num_files -= 1
+                    evicted_count += 1
+                except Exception:
+                    pass
+
+            # Remove metadata
+            if cache_key in self.metadata:
+                del self.metadata[cache_key]
+
+        if evicted_count > 0:
+            logger.info(f"ThumbnailCache evicted {evicted_count} files ({evicted_size / 1024 / 1024:.1f} MB) - LRU cleanup")
+            self.save_metadata()
 
 
 class AudioFileCache:
