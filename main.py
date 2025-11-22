@@ -1,10 +1,12 @@
 import os
+import logging
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical, Horizontal
 from textual.widgets import Input, Button, Static, Label, ListItem, ListView
 from textual.binding import Binding
 from textual.message import Message
 from textual import work
+from textual.logging import TextualHandler
 
 from youtube_search import YouTubeSearcher
 from thumbnail import download_thumbnail
@@ -448,6 +450,12 @@ class RytmuzApp(App):
 
 
 def main():
+    # Configure logging to route to Textual console
+    logging.basicConfig(
+        level="DEBUG",
+        handlers=[TextualHandler()],
+    )
+
     app = RytmuzApp()
     app.run()
 
