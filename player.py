@@ -20,7 +20,10 @@ class AudioPlayer:
         self.mpv_process: Optional[subprocess.Popen] = None
         self.current_video_id: Optional[str] = None
         self.is_playing: bool = False
-        self._ipc_socket = "/tmp/rytmuz_mpv_socket"
+        # Use .cache directory for socket to avoid snap confinement issues with /tmp
+        cache_dir = Path(".cache")
+        cache_dir.mkdir(exist_ok=True)
+        self._ipc_socket = str(cache_dir / "mpv_socket")
         self.cache = AudioCache()
         self.file_cache = AudioFileCache()
 
