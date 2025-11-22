@@ -113,18 +113,22 @@ class AudioPlayer:
 
             # Start mpv with IPC for control using socketpair
             # Capture stderr to diagnose intermittent audio issues
+            mpv_fd = self._mpv_socket.fileno()
+            mpv_cmd = [
+                "mpv",
+                "--no-video",
+                "--audio-display=no",
+                f"--input-ipc-client=fd://{mpv_fd}",
+                audio_url
+            ]
+            logger.debug(f"Starting mpv: {' '.join(mpv_cmd)}")
+
             self.mpv_process = subprocess.Popen(
-                [
-                    "mpv",
-                    "--no-video",
-                    "--audio-display=no",
-                    f"--input-ipc-client=fd://{self._mpv_socket.fileno()}",
-                    audio_url
-                ],
+                mpv_cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
-                pass_fds=(self._mpv_socket.fileno(),)
+                pass_fds=(mpv_fd,)
             )
 
             # Close mpv's socket end in our process (mpv inherited it)
@@ -134,25 +138,35 @@ class AudioPlayer:
             self.current_video_id = video_id
             self.is_playing = True
 
-            # Monitor stderr for audio issues
-            def log_mpv_stderr():
-                if self.mpv_process and self.mpv_process.stderr:
-                    for line in self.mpv_process.stderr:
-                        line = line.strip()
-                        if line:
-                            logger.info(f"mpv: {line}")
+            # Monitor stderr and exit code
+            def monitor_mpv():
+                if not self.mpv_process or not self.mpv_process.stderr:
+                    return
 
-            threading.Thread(target=log_mpv_stderr, daemon=True).start()
+                # Read all stderr output
+                for line in self.mpv_process.stderr:
+                    line = line.strip()
+                    if line:
+                        logger.info(f"mpv stderr: {line}")
 
-            # Monitor playback in background
-            if on_end:
-                def monitor():
-                    if self.mpv_process:
-                        self.mpv_process.wait()
-                        self.is_playing = False
-                        on_end()
+                # Wait for process to exit and log exit code
+                exit_code = self.mpv_process.wait()
+                logger.info(f"mpv exited with code {exit_code} (video_id={self.current_video_id})")
 
-                threading.Thread(target=monitor, daemon=True).start()
+                self.is_playing = False
+
+                # Call end callback if provided
+                if on_end:
+                    on_end()
+
+            threading.Thread(target=monitor_mpv, daemon=True).start()
+
+            # Give mpv a moment to start, then check if it's still running
+            import time
+            time.sleep(0.1)
+            poll_result = self.mpv_process.poll()
+            if poll_result is not None:
+                logger.error(f"mpv exited immediately with code {poll_result}")
 
         except Exception as e:
             raise Exception(f"Failed to start playback: {e}")
