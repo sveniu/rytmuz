@@ -42,6 +42,44 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
    rytmuz
    ```
 
+## Optional: Improve Search Results with YouTube API
+
+By default, rytmuz uses yt-dlp for searching, which provides basic keyword-based results. For better music-specific filtering (using YouTube's music topic and category filters), you can set up a free YouTube Data API v3 key:
+
+### Benefits
+- **Music-focused results**: Filters to music content using YouTube's music category
+- **Better relevance**: Uses YouTube's content categorization, not just keywords
+- **Safer for kids**: More predictable, music-oriented results
+
+### Setup Steps
+
+1. **Enable YouTube Data API v3**
+   - Go to [Google Cloud Console API Library](https://console.cloud.google.com/apis/library/youtube.googleapis.com)
+   - Click "Enable" (you may need to create a project first)
+
+2. **Create an API Key**
+   - Go to [API Credentials](https://console.cloud.google.com/apis/credentials)
+   - Click "Create Credentials" → "API key"
+   - Copy the generated API key
+
+3. **Restrict the API Key** (recommended for security)
+   - Click on your new API key to edit it
+   - Under "API restrictions", select "Restrict key"
+   - Choose "YouTube Data API v3" from the list
+   - Save
+
+4. **Set the environment variable**
+   ```bash
+   export YOUTUBE_API_KEY="your-api-key-here"
+
+   # Or add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+   echo 'export YOUTUBE_API_KEY="your-api-key-here"' >> ~/.bashrc
+   ```
+
+5. **Run rytmuz** - It will automatically use the API key if available
+
+**Note**: The YouTube Data API has a free quota of 10,000 units/day. Each search uses ~100 units, so you can do ~100 searches per day for free.
+
 ## Usage
 
 - **Help**: Press F1 or click the ? button to see all keyboard shortcuts and controls
