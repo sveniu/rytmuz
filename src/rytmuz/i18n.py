@@ -3,6 +3,13 @@ import os
 import locale
 
 
+# Language code aliases (e.g., nb/nn -> no)
+LANGUAGE_ALIASES = {
+    "nb": "no",  # Norwegian Bokmål -> Norwegian
+    "nn": "no",  # Norwegian Nynorsk -> Norwegian
+}
+
+
 # Translation strings for each supported language
 STRINGS = {
     "en": {
@@ -97,11 +104,13 @@ def set_language(lang_code: str) -> None:
     """Set the current language.
 
     Args:
-        lang_code: Two-letter language code (e.g., 'en', 'no')
+        lang_code: Two-letter language code (e.g., 'en', 'no', 'nb', 'nn')
     """
     global _current_lang
-    if lang_code in STRINGS:
-        _current_lang = lang_code
+    # Apply alias mapping and check if valid
+    resolved_lang = LANGUAGE_ALIASES.get(lang_code, lang_code)
+    if resolved_lang in STRINGS:
+        _current_lang = lang_code  # Store original, resolve at get_text time
     else:
         _current_lang = "en"
 
@@ -116,8 +125,11 @@ def get_text(key: str, **kwargs) -> str:
     Returns:
         Translated and formatted string, or key if translation missing
     """
+    # Apply language alias mapping
+    resolved_lang = LANGUAGE_ALIASES.get(_current_lang, _current_lang)
+
     # Get translations for current language, fall back to English
-    translations = STRINGS.get(_current_lang, STRINGS["en"])
+    translations = STRINGS.get(resolved_lang, STRINGS["en"])
     text = translations.get(key)
 
     # Fall back to English if key not found in current language
