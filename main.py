@@ -1,5 +1,7 @@
 import os
+import sys
 import logging
+from shutil import which
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical, Horizontal
 from textual.widgets import Input, Button, Static, Label, ListItem, ListView
@@ -12,6 +14,29 @@ from youtube_search import YouTubeSearcher
 from thumbnail import download_thumbnail
 from player import AudioPlayer
 from history import PlayHistory
+
+
+def check_external_dependencies() -> None:
+    """Check if required external tools are installed.
+
+    Exits with status 1 if any required dependencies are missing.
+    """
+    missing = []
+
+    if which("yt-dlp") is None:
+        missing.append("yt-dlp")
+
+    if which("mpv") is None:
+        missing.append("mpv")
+
+    if missing:
+        print("Error: Missing required dependencies:", ", ".join(missing), file=sys.stderr)
+        print("\nPlease install them:", file=sys.stderr)
+        print("  Ubuntu/Debian: sudo apt install yt-dlp mpv", file=sys.stderr)
+        print("  macOS: brew install yt-dlp mpv", file=sys.stderr)
+        print("  Windows: scoop install yt-dlp mpv", file=sys.stderr)
+        print("\nOr install yt-dlp via pipx: pipx install yt-dlp", file=sys.stderr)
+        sys.exit(1)
 
 
 class SearchResultItem(ListItem):
@@ -444,6 +469,9 @@ class RytmuzApp(App):
 
 
 def main():
+    # Check for required external dependencies before starting
+    check_external_dependencies()
+
     # Configure logging to route to Textual console
     logging.basicConfig(
         level="DEBUG",
