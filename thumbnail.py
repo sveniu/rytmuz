@@ -1,10 +1,13 @@
 """Thumbnail downloading and display utilities."""
 import io
+import logging
 import requests
 from PIL import Image
 from rich_pixels import Pixels
 
 from cache import ThumbnailCache
+
+logger = logging.getLogger(__name__)
 
 # Disk cache for raw thumbnail images
 _raw_cache = ThumbnailCache()
@@ -27,6 +30,7 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
     # Check in-memory processed cache first
     cache_key = (url, max_width)
     if cache_key in _thumbnail_cache:
+        logger.debug(f"In-memory thumbnail cache hit: {url[:50]}... (width={max_width})")
         return _thumbnail_cache[cache_key]
 
     try:
@@ -35,6 +39,7 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
 
         if raw_data is None:
             # Not cached, download from URL
+            logger.debug(f"Downloading thumbnail from URL: {url[:50]}...")
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             raw_data = response.content
@@ -64,8 +69,10 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
 
         # Cache the result
         _thumbnail_cache[cache_key] = pixels
+        logger.debug(f"Processed and cached thumbnail: {url[:50]}... (width={max_width})")
 
         return pixels
 
     except Exception as e:
+        logger.warning(f"Failed to load thumbnail from {url[:50]}...: {e}")
         return f"[dim]Could not load thumbnail: {e}[/dim]"

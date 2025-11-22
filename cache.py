@@ -3,8 +3,11 @@ import os
 import json
 import time
 import hashlib
+import logging
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class AudioCache:
@@ -55,12 +58,15 @@ class AudioCache:
 
             # Check if expired
             if time.time() - timestamp < self.ttl:
+                logger.info(f"AudioCache hit: {video_id}")
                 return entry.get("url")
 
             # Remove expired entry
+            logger.debug(f"AudioCache evicted expired entry: {video_id}")
             del self.cache[video_id]
             self.save()
 
+        logger.debug(f"AudioCache miss: {video_id}")
         return None
 
     def set(self, video_id: str, url: str) -> None:
@@ -75,6 +81,7 @@ class AudioCache:
             "timestamp": time.time()
         }
         self.save()
+        logger.debug(f"AudioCache set: {video_id}")
 
     def clear_expired(self) -> None:
         """Remove all expired entries from cache."""
@@ -89,6 +96,7 @@ class AudioCache:
 
         if expired:
             self.save()
+            logger.info(f"AudioCache cleared {len(expired)} expired entries")
 
 
 class SearchCache:
@@ -143,12 +151,16 @@ class SearchCache:
 
             # Check if expired
             if time.time() - timestamp < self.ttl:
-                return entry.get("results")
+                results = entry.get("results")
+                logger.info(f"SearchCache hit: '{key}' ({len(results) if results else 0} results)")
+                return results
 
             # Remove expired entry
+            logger.debug(f"SearchCache evicted expired entry: '{key}'")
             del self.cache[key]
             self.save()
 
+        logger.debug(f"SearchCache miss: '{key}'")
         return None
 
     def set(self, query: str, results: list) -> None:
@@ -166,6 +178,7 @@ class SearchCache:
             "timestamp": time.time()
         }
         self.save()
+        logger.debug(f"SearchCache set: '{key}' ({len(results)} results)")
 
     def clear_expired(self) -> None:
         """Remove all expired entries from cache."""
@@ -180,6 +193,7 @@ class SearchCache:
 
         if expired:
             self.save()
+            logger.info(f"SearchCache cleared {len(expired)} expired entries")
 
 
 class ThumbnailCache:
@@ -249,13 +263,17 @@ class ThumbnailCache:
             if time.time() - timestamp < self.ttl:
                 try:
                     with open(cache_file, "rb") as f:
-                        return f.read()
+                        data = f.read()
+                        logger.debug(f"ThumbnailCache hit: {cache_key} ({len(data)} bytes)")
+                        return data
                 except Exception:
                     pass
 
             # Remove expired entry
+            logger.debug(f"ThumbnailCache evicted expired entry: {cache_key}")
             self._remove(cache_key)
 
+        logger.debug(f"ThumbnailCache miss: {cache_key}")
         return None
 
     def set(self, url: str, image_data: bytes) -> None:
@@ -279,6 +297,7 @@ class ThumbnailCache:
                 "timestamp": time.time()
             }
             self.save_metadata()
+            logger.debug(f"ThumbnailCache set: {cache_key} ({len(image_data)} bytes)")
         except Exception:
             pass
 
@@ -312,6 +331,9 @@ class ThumbnailCache:
 
         for key in expired:
             self._remove(key)
+
+        if expired:
+            logger.info(f"ThumbnailCache cleared {len(expired)} expired entries")
 
 
 class AudioFileCache:
@@ -369,10 +391,13 @@ class AudioFileCache:
         if cache_file.exists() and video_id in self.metadata:
             # Update last accessed time and play count
             self.metadata[video_id]["last_accessed"] = time.time()
-            self.metadata[video_id]["play_count"] = self.metadata[video_id].get("play_count", 0) + 1
+            play_count = self.metadata[video_id].get("play_count", 0) + 1
+            self.metadata[video_id]["play_count"] = play_count
             self.save_metadata()
+            logger.info(f"AudioFileCache hit: {video_id} (play #{play_count})")
             return cache_file
 
+        logger.debug(f"AudioFileCache miss: {video_id}")
         return None
 
     def set(self, video_id: str, file_path: Path) -> None:
@@ -404,6 +429,7 @@ class AudioFileCache:
                 "play_count": 0
             }
             self.save_metadata()
+            logger.info(f"AudioFileCache set: {video_id} ({file_size / 1024 / 1024:.1f} MB)")
 
             # Enforce cache limits
             self._enforce_limits()
@@ -427,6 +453,9 @@ class AudioFileCache:
             key=lambda x: x[1].get("last_accessed", 0)
         )
 
+        evicted_count = 0
+        evicted_size = 0
+
         # Remove oldest until under limits
         for video_id, entry in sorted_items:
             if total_size <= self.max_size_bytes and num_files <= self.max_files:
@@ -437,14 +466,20 @@ class AudioFileCache:
             if cache_file.exists():
                 try:
                     cache_file.unlink()
-                    total_size -= entry["size"]
+                    file_size = entry["size"]
+                    total_size -= file_size
+                    evicted_size += file_size
                     num_files -= 1
+                    evicted_count += 1
                 except Exception:
                     pass
 
             # Remove metadata
             if video_id in self.metadata:
                 del self.metadata[video_id]
+
+        if evicted_count > 0:
+            logger.info(f"AudioFileCache evicted {evicted_count} files ({evicted_size / 1024 / 1024:.1f} MB) - LRU cleanup")
 
         self.save_metadata()
 
