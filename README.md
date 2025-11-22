@@ -8,14 +8,14 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
 - **Easy search**: Always-available search field with Ctrl+S hotkey
 - **Recent songs**: Quick access to recently played songs with Ctrl+R
 - **Simple controls**: Play/pause, seek ±10s, volume adjustment
-- **Smart caching**: Fast replay of recent songs (sub-second vs 10+ seconds)
-- **Visual feedback**: Thumbnails displayed using ASCII art
+- **Smart caching**: Fast replay of recent songs
+- **Visual feedback**: Thumbnails displayed with terminal graphics
 - **Kid-friendly**: Safe search enabled, focused on music discovery
 
 ## Requirements
 
 - Python 3.10+
-- `yt-dlp` command-line tool
+- `yt-dlp` command-line tool (does all the heavy lifting for YouTube integration)
 - `mpv` media player
 
 ## Setup
@@ -57,6 +57,7 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
 ## Design Decisions
 
 - **No queueing**: Immediate playback on selection (may add later)
-- **No auto-next**: Stops after song ends (may add YouTube recommendations later)
+- **No auto-next**: Stops after song ends (may add auto-advance at a later point)
+- **Minimal playback UI**: No progress bar or timeline to keep focus on the music, not the interface
 - **Audio-only**: No visualization to encourage listening and dancing vs screen time
 - **Fast replay**: Cached URLs enable instant playback for favorite songs
