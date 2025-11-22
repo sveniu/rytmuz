@@ -272,20 +272,46 @@ class RytmuzApp(App):
         self.query_one("#results-container").remove_class("hidden")
         self.query_one("#player-view").add_class("hidden")
 
-        results_grid = self.query_one("#results-grid", Vertical)
-        results_grid.remove_children()
+        # Clear results and load recent songs
+        def clear_results():
+            results_grid = self.query_one("#results-grid", Vertical)
+            results_grid.remove_children()
 
+        clear_results()
+        self.load_recent_songs()
+
+    @work(thread=True)
+    def load_recent_songs(self) -> None:
+        """Load and display recent songs with thumbnails."""
         recent_songs = self.history.get_recent(20)
 
         if not recent_songs:
-            results_grid.mount(Label("No recent songs"))
+            def add_no_songs():
+                results_grid = self.query_one("#results-grid", Vertical)
+                results_grid.mount(Label("No recent songs"))
+            self.call_from_thread(add_no_songs)
             return
 
+        # Calculate thumbnail width
+        terminal_width = self.size.width
+        max_width = max(20, int(terminal_width / 2) - 4)
+
         for song in recent_songs:
-            card = ResultCard(song)
-            results_grid.mount(card)
-            # Load thumbnail in background
-            self.load_card_thumbnail(card, song["thumbnail_url"])
+            # Load thumbnail (synchronously in this worker thread)
+            thumbnail = download_thumbnail(song["thumbnail_url"], max_width=max_width)
+
+            def add_card(s=song, thumb=thumbnail):
+                results_grid = self.query_one("#results-grid", Vertical)
+                card = ResultCard(s)
+                results_grid.mount(card)
+                # Update thumbnail immediately
+                try:
+                    thumb_static = card.query_one(".card-thumbnail", Static)
+                    thumb_static.update(thumb)
+                except Exception as e:
+                    self.log(f"Error updating thumbnail: {e}")
+
+            self.call_from_thread(add_card)
 
     def on_mount(self) -> None:
         """Called when app starts."""
@@ -356,13 +382,24 @@ class RytmuzApp(App):
                 self.call_from_thread(add_no_results)
                 return
 
+            # Calculate thumbnail width based on terminal
+            terminal_width = self.size.width
+            max_width = max(20, int(terminal_width / 2) - 4)
+
             for result in results:
-                def add_result(r=result):
+                # Load thumbnail (synchronously in this worker thread)
+                thumbnail = download_thumbnail(result["thumbnail_url"], max_width=max_width)
+
+                def add_result(r=result, thumb=thumbnail):
                     results_grid = self.query_one("#results-grid", Vertical)
                     card = ResultCard(r)
                     results_grid.mount(card)
-                    # Load thumbnail in background
-                    self.load_card_thumbnail(card, r["thumbnail_url"])
+                    # Update thumbnail immediately
+                    try:
+                        thumb_static = card.query_one(".card-thumbnail", Static)
+                        thumb_static.update(thumb)
+                    except Exception as e:
+                        self.log(f"Error updating thumbnail: {e}")
 
                 self.call_from_thread(add_result)
 
@@ -371,26 +408,6 @@ class RytmuzApp(App):
                 results_grid = self.query_one("#results-grid", Vertical)
                 results_grid.mount(Label(f"[red]Error: {e}[/red]"))
             self.call_from_thread(add_error)
-
-    @work(thread=True)
-    def load_card_thumbnail(self, card: ResultCard, thumbnail_url: str) -> None:
-        """Load and display thumbnail in a result card."""
-        # Calculate thumbnail width based on terminal
-        terminal_width = self.size.width
-        # Grid is 2 columns, so each card gets ~half the width
-        max_width = max(20, int(terminal_width / 2) - 4)
-
-        thumbnail = download_thumbnail(thumbnail_url, max_width=max_width)
-
-        def update_card():
-            # Find the thumbnail static within the card
-            try:
-                thumb_static = card.query_one(".card-thumbnail", Static)
-                thumb_static.update(thumbnail)
-            except Exception as e:
-                self.log(f"Error updating thumbnail: {e}")
-
-        self.call_from_thread(update_card)
 
     async def on_result_card_selected(self, event: ResultCard.Selected) -> None:
         """Handle when a result card is clicked."""
