@@ -217,6 +217,8 @@ class RytmuzApp(App):
     #results-container {
         height: 1fr;
         width: 100%;
+        align: center middle;
+        content-align: center middle;
     }
 
     #loading-container {
@@ -232,6 +234,10 @@ class RytmuzApp(App):
         grid-size: 2;
         grid-gutter: 1 1;
         padding: 1;
+    }
+
+    #empty-state {
+        text-align: center;
     }
 
     .result-card {
@@ -406,6 +412,14 @@ class RytmuzApp(App):
         def clear_results():
             results_grid = self.query_one("#results-grid", Vertical)
             results_grid.remove_children()
+            results_grid.remove_class("hidden")
+            # Remove any empty state
+            results_container = self.query_one("#results-container")
+            try:
+                empty_state = results_container.query_one("#empty-state")
+                empty_state.remove()
+            except:
+                pass
 
         clear_results()
         self.load_recent_songs()
@@ -417,8 +431,12 @@ class RytmuzApp(App):
 
         if not recent_songs:
             def add_no_songs():
+                results_container = self.query_one("#results-container")
+                # Hide the grid when empty
                 results_grid = self.query_one("#results-grid", Vertical)
-                results_grid.mount(Label(_("no_recent_songs")))
+                results_grid.add_class("hidden")
+                # Mount empty state in container for proper centering
+                results_container.mount(Label(_("no_recent_songs"), id="empty-state"))
             self.call_from_thread(add_no_songs)
             return
 
@@ -508,6 +526,14 @@ class RytmuzApp(App):
                 self.query_one("#results-container").remove_class("hidden")
                 results_grid = self.query_one("#results-grid", Vertical)
                 results_grid.remove_children()
+                results_grid.remove_class("hidden")
+                # Remove any empty state from recent songs view
+                results_container = self.query_one("#results-container")
+                try:
+                    empty_state = results_container.query_one("#empty-state")
+                    empty_state.remove()
+                except:
+                    pass
 
             self.call_from_thread(show_results)
 
