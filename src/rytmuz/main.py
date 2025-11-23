@@ -454,11 +454,11 @@ class RytmuzApp(App):
             # Load thumbnail (synchronously in this worker thread)
             thumbnail = download_thumbnail(song["thumbnail_url"], max_width=max_width)
 
-            def add_card(s=song, thumb=thumbnail):
+            async def add_card(s=song, thumb=thumbnail):
                 results_grid = self.query_one("#results-grid", Vertical)
                 card = ResultCard(s)
-                results_grid.mount(card)
-                # Update thumbnail immediately
+                await results_grid.mount(card)
+                # Update thumbnail after card is mounted and composed
                 try:
                     thumb_static = card.query_one(".card-thumbnail", Static)
                     thumb_static.update(thumb)
@@ -558,11 +558,11 @@ class RytmuzApp(App):
                 # Load thumbnail (synchronously in this worker thread)
                 thumbnail = download_thumbnail(result["thumbnail_url"], max_width=max_width)
 
-                def add_result(r=result, thumb=thumbnail):
+                async def add_result(r=result, thumb=thumbnail):
                     results_grid = self.query_one("#results-grid", Vertical)
                     card = ResultCard(r)
-                    results_grid.mount(card)
-                    # Update thumbnail immediately
+                    await results_grid.mount(card)
+                    # Update thumbnail after card is mounted and composed
                     try:
                         thumb_static = card.query_one(".card-thumbnail", Static)
                         thumb_static.update(thumb)
