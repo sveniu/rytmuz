@@ -31,6 +31,12 @@ def download_thumbnail(url: str, max_width: int = 40) -> str:
     if url.startswith("//"):
         url = "https:" + url
 
+    # Strip query parameters to get JPEG instead of WebP
+    # YouTube serves WebP with certain query params for efficiency,
+    # but JPEG has better compatibility with Pillow installations
+    if "?" in url:
+        url = url.split("?")[0]
+
     # Check in-memory processed cache first
     cache_key = (url, max_width)
     if cache_key in _thumbnail_cache:
