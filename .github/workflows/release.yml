@@ -1,0 +1,57 @@
+name: Release to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to release (e.g., v0.1.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write      # Required for creating GitHub releases
+  id-token: write      # Required for PyPI trusted publishing
+
+jobs:
+  build-and-publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/rytmuz
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0  # Full history for changelog generation
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies and build package
+        run: |
+          uv sync --frozen
+          uv build
+
+      - name: Test package installation
+        run: |
+          uv run --with dist/*.whl --no-project -- python -c "import rytmuz; print('Package import successful')"
+
+      - name: Publish to PyPI
+        run: uv publish
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ inputs.tag }} \
+            --title "rytmuz ${{ inputs.tag }}" \
+            --generate-notes \
+            dist/*

@@ -12,6 +12,7 @@ INIT
 api_key
 .cache/
 .history.json
+RELEASING.md
 
 # IDE
 .vscode/

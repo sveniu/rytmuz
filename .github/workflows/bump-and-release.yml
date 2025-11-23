@@ -1,0 +1,94 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - alpha
+          - beta
+          - rc
+          - stable
+      publish_testpypi:
+        description: 'Publish to TestPyPI after bump?'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  bump-version:
+    name: Bump version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Bump version
+        id: version
+        run: |
+          uv version --bump ${{ inputs.bump_type }}
+          NEW_VERSION=$(uv version)
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${NEW_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Commit and push version bump
+        run: |
+          git add pyproject.toml uv.lock
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+          git tag -a ${{ steps.version.outputs.tag }} -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin main
+          git push origin ${{ steps.version.outputs.tag }}
+
+      - name: Build and test package
+        if: inputs.publish_testpypi
+        run: |
+          uv build
+          uv run --with dist/*.whl --no-project -- python -c "import rytmuz; print('Package import successful')"
+
+      - name: Publish to TestPyPI
+        if: inputs.publish_testpypi
+        run: uv publish --index testpypi
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Version Bump Complete! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **New version:** ${{ steps.version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git tag:** ${{ steps.version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.publish_testpypi }}" = "true" ]; then
+            echo "✅ Published to TestPyPI for testing" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Test installation: \`uvx --index https://test.pypi.org/simple rytmuz\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**Next step:** Run the 'Release to PyPI' workflow to publish to production" >> $GITHUB_STEP_SUMMARY

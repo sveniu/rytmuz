@@ -1,0 +1,43 @@
+name: Test Release (TestPyPI)
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test-build-and-publish:
+    name: Test build and publish to TestPyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/rytmuz
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Build package
+        run: uv build
+
+      - name: Test package installation
+        run: |
+          uv run --with dist/*.whl --no-project -- python -c "import rytmuz; print('Package import successful')"
+
+      - name: Publish to TestPyPI
+        run: uv publish --index testpypi
+
+      - name: Test installation from TestPyPI
+        run: |
+          sleep 10  # Wait for package to be available
+          uv run --with rytmuz --index testpypi --no-project -- python -c "import rytmuz; print('TestPyPI installation successful')"
