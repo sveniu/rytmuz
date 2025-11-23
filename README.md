@@ -1,23 +1,23 @@
 # RYTMUZ
 
-A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and mpv.
+A simple, audio-only YouTube music player built with Python, Textualize, yt-dlp, and mpv.
 
 ![Playback view](assets/playback.png)
 
 ## Features
 
-- **Music-only focus**: Audio playback only, no video distractions
+- **Audio-only**: Audio playback only, no video distractions
 - **Easy search**: Always-available search field with Ctrl+S hotkey
 - **Recent songs**: Quick access to recently played songs with Ctrl+R
 - **Simple controls**: Play/pause, seek ±10s, volume adjustment
 - **Smart caching**: Fast replay of recent songs
 - **Visual feedback**: Thumbnails displayed with terminal graphics
-- **Kid-friendly**: Safe search enabled, focused on music discovery
+- **Focused listening**: Minimal interface for distraction-free music listening
 
 ## Requirements
 
 - Python 3.10+
-- `yt-dlp` command-line tool (does all the heavy lifting for YouTube integration)
+- `yt-dlp` command-line tool - **recent version required** (does all the heavy lifting for YouTube integration)
 - `mpv` media player
 - `libjpeg` library (for image decoding with Pillow - thumbnail display)
 
@@ -26,7 +26,9 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
 1. Install system dependencies:
    ```bash
    # Ubuntu/Debian
-   sudo apt install yt-dlp mpv libjpeg62-turbo
+   # Note: apt yt-dlp is often outdated, install via pipx instead
+   sudo apt install mpv libjpeg62-turbo
+   pipx install yt-dlp
 
    # macOS
    brew install yt-dlp mpv jpeg
@@ -52,7 +54,7 @@ By default, rytmuz uses yt-dlp for searching, which provides basic keyword-based
 ### Benefits
 - **Music-focused results**: Filters to music content using YouTube's music category
 - **Better relevance**: Uses YouTube's content categorization, not just keywords
-- **Safer for kids**: More predictable, music-oriented results
+- **Safe search**: Moderate safe search filtering enabled
 - **Free tier**: Up to 100 searches per day at no cost
 
 ### Setup Steps
@@ -93,7 +95,7 @@ By default, rytmuz uses yt-dlp for searching, which provides basic keyword-based
 ## Design Decisions
 
 - **No queueing**: Immediate playback on selection (may add later)
-- **No auto-next**: Stops after song ends (may add auto-advance at a later point)
+- **No auto-next**: Stops after song ends (may add later)
 - **Minimal playback UI**: No progress bar or timeline to keep focus on the music, not the interface
-- **Audio-only**: No visualization to encourage listening and dancing vs screen time
-- **Fast replay**: Cached URLs enable instant playback for favorite songs
+- **Audio-only**: No visualization to encourage focused listening
+- **Fast replay**: Cached data enables instant playback for favorite songs
