@@ -17,7 +17,7 @@ A simple, audio-only YouTube music player built with Python, Textualize, yt-dlp,
 ## Requirements
 
 - Python 3.10+
-- `yt-dlp` command-line tool - **recent version required** (does all the heavy lifting for YouTube integration)
+- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) command-line tool - **recent version required** (does all the heavy lifting for YouTube integration)
 - `mpv` media player
 - `libjpeg` library (for image decoding with Pillow - thumbnail display)
 
@@ -26,9 +26,9 @@ A simple, audio-only YouTube music player built with Python, Textualize, yt-dlp,
 1. Install system dependencies:
    ```bash
    # Ubuntu/Debian
-   # Note: apt yt-dlp is often outdated, install via pipx instead
+   # Note: apt yt-dlp is often outdated, install via uv instead
    sudo apt install mpv libjpeg62-turbo
-   pipx install yt-dlp
+   uv tool install yt-dlp
 
    # macOS
    brew install yt-dlp mpv jpeg
