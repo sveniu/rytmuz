@@ -2,6 +2,8 @@
 
 A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and mpv.
 
+![Playback view](assets/playback.png)
+
 ## Features
 
 - **Music-only focus**: Audio playback only, no video distractions
