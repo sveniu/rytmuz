@@ -66,7 +66,7 @@ class AudioPlayer:
 
         try:
             result = subprocess.run(
-                ["yt-dlp", "-g", "-f", "bestaudio", "--force-ipv4", youtube_url],
+                ["yt-dlp", "-g", "-f", "bestaudio", youtube_url],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -290,7 +290,6 @@ class AudioPlayer:
                     "yt-dlp",
                     "-f", "bestaudio",
                     "--concurrent-fragments", "4",
-                    "--force-ipv4",
                     "-o", str(temp_file),
                     youtube_url
                 ],
