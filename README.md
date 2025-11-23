@@ -39,6 +39,10 @@ A simple, audio-only YouTube music player built with Python, Textualize, yt-dlp,
    # Using uvx (recommended - no installation needed)
    uvx rytmuz
 
+   # Or install with uv for persistent use
+   uv tool install rytmuz
+   rytmuz
+
    # Or using pipx
    pipx run rytmuz
 
