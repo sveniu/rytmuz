@@ -40,4 +40,4 @@ jobs:
       - name: Test installation from TestPyPI
         run: |
           sleep 10  # Wait for package to be available
-          uv run --with rytmuz --index testpypi --no-project -- python -c "import rytmuz; print('TestPyPI installation successful')"
+          uv run --index https://test.pypi.org/simple/ --index-strategy unsafe-best-match --with rytmuz --no-project -- python -c "import rytmuz; print('TestPyPI installation successful')"
