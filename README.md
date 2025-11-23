@@ -19,16 +19,17 @@ A kid-friendly YouTube music player built with Python, Textualize, yt-dlp, and m
 - Python 3.10+
 - `yt-dlp` command-line tool (does all the heavy lifting for YouTube integration)
 - `mpv` media player
+- `libjpeg` library (for image decoding with Pillow - thumbnail display)
 
 ## Setup
 
 1. Install system dependencies:
    ```bash
    # Ubuntu/Debian
-   sudo apt install yt-dlp mpv
+   sudo apt install yt-dlp mpv libjpeg62-turbo
 
    # macOS
-   brew install yt-dlp mpv
+   brew install yt-dlp mpv jpeg
    ```
 
 2. Run the app:
