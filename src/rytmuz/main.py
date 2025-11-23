@@ -147,7 +147,7 @@ class HelpScreen(ModalScreen):
             self.dismiss()
 
 
-class ResultCard(Static):
+class ResultCard(Static, can_focus=True):
     """A card showing a search result with thumbnail and title."""
 
     def __init__(self, video_data: dict, *args, **kwargs):
@@ -163,6 +163,11 @@ class ResultCard(Static):
     def on_click(self) -> None:
         """Handle card click."""
         self.post_message(ResultCard.Selected(self))
+
+    def on_key(self, event) -> None:
+        """Handle keyboard input."""
+        if event.key == "enter":
+            self.post_message(ResultCard.Selected(self))
 
     class Selected(Message):
         """Posted when a result card is clicked."""
@@ -255,6 +260,11 @@ class RytmuzApp(App):
     }
 
     .result-card:hover {
+        background: $boost;
+        border: solid $accent;
+    }
+
+    .result-card:focus {
         background: $boost;
         border: solid $accent;
     }
