@@ -183,6 +183,9 @@ class RytmuzApp(App):
     # Debug mode - toggle with Ctrl+D
     debug_mode = False
 
+    # Repeat mode - enabled by default
+    repeat_enabled = True
+
     # Currently selected search result
     selected_video_data: dict | None = None
 
@@ -383,6 +386,7 @@ class RytmuzApp(App):
                     yield Button(_("seek_forward"), id="seek-forward", classes="control-button")
                     yield Button(_("vol_down"), id="vol-down", classes="control-button")
                     yield Button(_("vol_up"), id="vol-up", classes="control-button")
+                    yield Button(f"🔁 {_('repeat')}: {_('on')}", id="repeat-toggle", classes="control-button")
 
         # Debug info at bottom
         yield Label("", id="debug-info")
@@ -662,6 +666,11 @@ class RytmuzApp(App):
             self.player.adjust_volume(-5)
         elif button_id == "vol-up":
             self.player.adjust_volume(5)
+        elif button_id == "repeat-toggle":
+            self.repeat_enabled = not self.repeat_enabled
+            state_text = _("on") if self.repeat_enabled else _("off")
+            event.button.label = f"🔁 {_('repeat')}: {state_text}"
+            self.player.set_repeat(self.repeat_enabled)
 
 
 def main():

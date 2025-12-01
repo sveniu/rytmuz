@@ -24,6 +24,9 @@ STRINGS = {
         "vol_down": "🔉 Vol-",
         "vol_up": "🔊 Vol+",
         "recent_button": "⏱ Recent",
+        "repeat": "Repeat",
+        "on": "ON",
+        "off": "OFF",
 
         # Empty states
         "no_recent_songs": "No recent songs",
@@ -76,6 +79,9 @@ STRINGS = {
         "vol_down": "🔉 Vol-",
         "vol_up": "🔊 Vol+",
         "recent_button": "⏱ Nylige",
+        "repeat": "Gjenta",
+        "on": "PÅ",
+        "off": "AV",
 
         # Empty states
         "no_recent_songs": "Ingen nylige sanger",

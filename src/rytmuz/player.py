@@ -20,6 +20,7 @@ class AudioPlayer:
         self.mpv_process: Optional[subprocess.Popen] = None
         self.current_video_id: Optional[str] = None
         self.is_playing: bool = False
+        self.repeat_enabled: bool = True  # Repeat enabled by default
 
         # Create socketpair for IPC with mpv
         # This bypasses snap filesystem restrictions since no path is needed
@@ -121,6 +122,7 @@ class AudioPlayer:
                 "--audio-display=no",
                 "--network-timeout=5",
                 f"--input-ipc-client=fd://{mpv_fd}",
+                f"--loop={'inf' if self.repeat_enabled else 'no'}",
                 audio_url
             ]
             logger.debug(f"Starting mpv: {' '.join(mpv_cmd)}")
@@ -216,6 +218,18 @@ class AudioPlayer:
         """
         if self.mpv_process:
             self._send_command(["add", "volume", amount])
+
+    def set_repeat(self, enabled: bool) -> None:
+        """Set repeat mode.
+
+        Args:
+            enabled: True to enable repeat, False to disable
+        """
+        self.repeat_enabled = enabled
+        if self.mpv_process:
+            # Set mpv's loop property: inf for infinite loop, no for no loop
+            loop_value = "inf" if enabled else "no"
+            self._send_command(["set_property", "loop", loop_value])
 
     def _send_command(self, command: list) -> None:
         """Send command to mpv via IPC using socketpair.
